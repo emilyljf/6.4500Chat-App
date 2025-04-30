@@ -1,0 +1,342 @@
+* {
+    font-family: 'Nunito', 'Segoe UI', 'Helvetica Neue', sans-serif;
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 30px;
+    background-color: #fffafc;
+    background-image: linear-gradient(135deg, #ffe8f0 0%, #e5f0ff 100%);
+}
+
+#app {
+    background: white;
+    padding: 30px;
+    border-radius: 20px;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08);
+    border: 2px solid #f0e6ff;
+}
+
+h1,
+h2,
+h3 {
+    color: #805ad5;
+    margin-bottom: 15px;
+}
+
+h1 {
+    font-size: 2.5rem;
+    text-align: center;
+    font-family: 'Pacifico', cursive;
+    color: #d63384;
+    margin-bottom: 30px;
+}
+
+.header-controls {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 20px;
+    align-items: center;
+}
+
+button,
+input[type="submit"] {
+    cursor: pointer;
+    background: #ff80ab;
+    color: white;
+    border: none;
+    border-radius: 12px;
+    padding: 10px 18px;
+    font-size: 0.95rem;
+    transition: all 0.2s ease;
+    box-shadow: 0 3px 6px rgba(255, 128, 171, 0.3);
+}
+
+button:hover {
+    background: #ff5c9f;
+    transform: translateY(-1px);
+    box-shadow: 0 5px 10px rgba(255, 128, 171, 0.4);
+}
+
+.create-group-btn {
+    background: #ff80ab;
+    padding: 10px 22px;
+    font-size: 16px;
+}
+
+.back-button {
+    background: #c0c0c0;
+    box-shadow: 0 2px 5px rgba(192, 192, 192, 0.4);
+}
+
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.4);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 999;
+}
+
+.modal-content {
+    background: white;
+    padding: 25px;
+    border-radius: 16px;
+    width: 90%;
+    max-width: 500px;
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.15);
+    border: 2px solid #ffd6e0;
+}
+
+.form-group label {
+    display: block;
+    font-weight: 600;
+    color: #6a4c93;
+    margin-bottom: 8px;
+}
+
+input[type="text"],
+textarea {
+    width: 100%;
+    padding: 12px 15px;
+    border: 2px solid #f3d1f4;
+    border-radius: 10px;
+    transition: border-color 0.3s;
+    background: #fffafd;
+}
+
+input[type="text"]:focus,
+textarea:focus {
+    border-color: #d88dd1;
+    outline: none;
+    box-shadow: 0 0 0 4px rgba(216, 141, 209, 0.2);
+}
+
+.group-sections {
+    display: flex;
+    gap: 30px;
+    margin-top: 25px;
+}
+
+.group-section {
+    flex: 1;
+    background: #fff1f9;
+    padding: 20px;
+    border-radius: 14px;
+    border: 2px dashed #ffd6e0;
+}
+
+.group-section h3 {
+    color: #d63384;
+    margin-bottom: 12px;
+    border-bottom: 2px solid #ffb3c6;
+    padding-bottom: 6px;
+}
+
+.groups-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+    gap: 20px;
+}
+
+.group-card {
+    border: 2px solid #ffd6e0;
+    border-radius: 16px;
+    transition: 0.2s;
+    background: #fffafd;
+    overflow: hidden;
+}
+
+.group-card:hover {
+    transform: scale(1.03);
+    box-shadow: 0 8px 12px rgba(255, 128, 171, 0.2);
+}
+
+.group-image,
+.default-group-image {
+    height: 100px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background: #ffe5f1;
+    color: #d63384;
+    font-weight: bold;
+    font-size: 32px;
+    border-bottom: 1px solid #ffb3c6;
+}
+
+.default-group-image {
+    border-radius: 0;
+}
+
+.group-info {
+    text-align: center;
+    padding: 15px;
+}
+
+.open-btn,
+.join-btn {
+    font-size: 0.9rem;
+    background: #f06292;
+    margin: 4px auto;
+}
+
+.messages {
+    background: #fffafd;
+    padding: 15px;
+    border: 2px solid #ffd6e0;
+    border-radius: 14px;
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.message-item {
+    background: #ffeef5;
+    padding: 10px 12px;
+    border-left: 5px solid #f06292;
+    border-radius: 10px;
+    margin-bottom: 10px;
+}
+
+.message-sender {
+    color: #e91e63;
+    font-weight: bold;
+}
+
+.message-time {
+    color: #888;
+    font-size: 0.75rem;
+    float: right;
+}
+
+.edit-form input {
+    border-color: #ffc1e3;
+}
+
+.save-btn {
+    background: #81c784;
+}
+
+.cancel-btn {
+    background: #ef5350;
+}
+
+.modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+}
+
+.rename-btn,
+.edit-btn,
+.edit-group-btn {
+    background: #ffd6e0;
+    color: #d63384;
+    border: 1px solid #ffb3c6;
+    font-weight: bold;
+    padding: 6px 12px;
+    border-radius: 8px;
+}
+
+.rename-btn:hover,
+.edit-btn:hover,
+.edit-group-btn:hover {
+    background: #ffc1e3;
+}
+
+.leave-btn,
+.delete-btn {
+    background: #f44336;
+    padding: 8px 14px;
+    font-size: 14px;
+    border-radius: 10px;
+    color: white;
+}
+
+.loading-message,
+.no-groups {
+    text-align: center;
+    padding: 15px;
+    color: #999;
+    font-style: italic;
+}
+
+@media (max-width: 600px) {
+    .group-sections {
+        flex-direction: column;
+    }
+
+    .groups-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .header-controls {
+        flex-direction: column;
+        gap: 12px;
+    }
+}
+
+
+.group-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 15px;
+    margin-bottom: 20px;
+}
+
+.group-header h2 {
+    flex-grow: 1;
+    font-size: 1.5em;
+    margin: 0;
+    color: #6a4c93;
+}
+
+.group-avatar {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    overflow: hidden;
+    background-color: #f3e5ff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.default-avatar {
+    width: 100%;
+    height: 100%;
+    background-color: #ffb3c6;
+    color: white;
+    font-size: 20px;
+    font-weight: bold;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.group-header .edit-group-btn,
+.group-header .edit-btn {
+    padding: 6px 12px;
+    font-size: 0.9rem;
+    background-color: #fff;
+    color: #ffb3c6;
+    border: 1px solid #ffb3c6;
+    border-radius: 8px;
+    margin-left: 10px;
+    transition: background-color 0.2s ease;
+}
+
+.group-header .edit-group-btn:hover,
+.group-header .edit-btn:hover {
+    background-color: #f3e5ff;
+}

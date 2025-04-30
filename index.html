@@ -1,1 +1,259 @@
-<h1>Hello!</h1>
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title> Chatroom</title>
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700&display=swap" rel="stylesheet">
+    <script type="importmap">
+        {
+            "imports": {
+                "vue": "https://cdn.jsdelivr.net/npm/vue@3.5.13/dist/vue.esm-browser.js",
+                "@graffiti-garden/implementation-local": "https://cdn.jsdelivr.net/npm/@graffiti-garden/implementation-local@0.6.4/dist/browser/index.js",
+                "@graffiti-garden/implementation-remote": "https://cdn.jsdelivr.net/npm/@graffiti-garden/implementation-remote@0.6.2/dist/browser/index.js",
+                "@graffiti-garden/wrapper-vue": "https://cdn.jsdelivr.net/npm/@graffiti-garden/wrapper-vue@0.7.2/dist/browser/plugin.mjs"
+            }
+        }
+    </script>
+    <link rel="stylesheet" href="style.css" />
+</head>
+
+<body>
+    <div id="app">
+        <h1>Chatroom</h1>
+        <button v-if="!$graffitiSession.value" @click="$graffiti.login()">
+            Log In
+        </button>
+
+        <template v-else>
+            <div class="header-controls">
+                <button @click="$graffiti.logout($graffitiSession.value)">
+                    Log Out
+                </button>
+                <button v-if="currentView === 'group'" @click="returnHome()" class="back-button">
+                    ← Back to All Groups
+                </button>
+            </div>
+
+            <template v-if="currentView === 'home'">
+                <h2>Group Chats</h2>
+                <button @click="showCreateGroupModal = true" class="create-group-btn">
+                    + Create New Group
+                </button>
+
+                <div v-if="showCreateGroupModal" class="modal-overlay">
+                    <div class="modal-content">
+                        <h3>Create New Group</h3>
+                        <form @submit.prevent="createGroupChat($graffitiSession.value)">
+                            <div class="form-group">
+                                <label>Group Name:</label>
+                                <input type="text" v-model="newGroupName" required />
+                            </div>
+                            <div class="form-group">
+                                <label>Group Picture (URL):</label>
+                                <input type="text" v-model="newGroupImage"
+                                    placeholder="https://example.com/image.jpg" />
+                                <div class="image-preview" v-if="newGroupImage">
+                                    <img :src="newGroupImage" alt="Group preview" />
+                                </div>
+                            </div>
+                            <div class="modal-actions">
+                                <button type="button" @click="showCreateGroupModal = false" class="cancel-btn">
+                                    Cancel
+                                </button>
+                                <button type="submit" :disabled="creatingGroup" class="create-btn">
+                                    {{ creatingGroup ? 'Creating...' : 'Create Group' }}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <div class="group-sections">
+                    <div class="group-section">
+                        <h3>My Group Chats</h3>
+                        <graffiti-discover v-slot="{ objects }" :channels="['designftw']" :schema="groupDiscoverSchema"
+                            :key="'mygroups-' + forceRefresh">
+                            <div v-if="filteredMyGroups(objects).length === 0" class="no-groups">
+                                No groups yet. Join or create one!
+                            </div>
+                            <div class="groups-grid">
+                                <div v-for="obj in filteredMyGroups(objects)" :key="obj.url" class="group-card">
+                                    <div class="group-image" @click="enterGroup(obj.value.object)">
+                                        <img v-if="obj.value.object.image" :src="obj.value.object.image"
+                                            alt="Group image" />
+                                        <div v-else class="default-group-image">
+                                            {{ obj.value.object.name.charAt(0).toUpperCase() }}
+                                        </div>
+                                    </div>
+                                    <div class="group-info">
+                                        <h4>{{ obj.value.object.name }}</h4>
+                                        <button @click="enterGroup(obj.value.object)" class="open-btn">
+                                            Open
+                                        </button>
+                                        <button @click="leaveGroup(obj)" class="leave-btn">
+                                            Leave
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </graffiti-discover>
+                    </div>
+
+                    <div class="group-section">
+                        <h3>Available Groups</h3>
+                        <graffiti-discover v-slot="{ objects: groupObjects }" :channels="['designftw']"
+                            :schema="groupChatSchema" :key="'groups-' + forceRefresh">
+
+                            <div v-if="Array.isArray(groupObjects) && groupObjects.filter(g => !myGroups.includes(g.value.object.channel)).length === 0"
+                                class="no-groups">
+                                No groups found. Create one to get started!
+                            </div>
+
+                            <div class="groups-grid">
+                                <div v-for="obj in groupObjects.filter(g => !myGroups.includes(g.value.object.channel))"
+                                    :key="obj.url" class="group-card">
+                                    <div class="group-image" @click="enterGroup(obj.value.object)">
+                                        <img v-if="obj.value.object.image" :src="obj.value.object.image"
+                                            alt="Group image" />
+                                        <div v-else class="default-group-image">
+                                            {{ (obj.value.object.name || 'G').charAt(0).toUpperCase() }}
+                                        </div>
+                                    </div>
+                                    <div class="group-info">
+                                        <h4>{{ obj.value.object.name }}</h4>
+                                        <button @click="enterGroup(obj.value.object)" class="join-btn">
+                                            Join
+                                        </button>
+                                        <button v-if="obj.actor === $graffitiSession.value.actor"
+                                            @click="deleteGroup(obj)" class="delete-btn">Delete</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </graffiti-discover>
+                    </div>
+                </div>
+            </template>
+
+            <template v-else-if="currentView === 'group' && currentGroup">
+                <div class="group-header">
+
+                    <div class="group-avatar">
+                        <img v-if="currentGroup.image" :src="currentGroup.image" alt="Group avatar" />
+                        <div v-else class="default-avatar">
+                            {{ currentGroup.name.charAt(0).toUpperCase() }}
+                        </div>
+                    </div>
+
+                    <graffiti-discover v-slot="{ objects: nameObjects }" :channels="[currentGroup.channel]"
+                        :schema="groupNameSchema">
+                        <div v-if="nameObjects.length > 0">
+                            <h2>{{ nameObjects[0].value.name }}</h2>
+                        </div>
+                        <div v-else>
+                            <h2>{{ currentGroup.name }}</h2>
+                        </div>
+                    </graffiti-discover>
+
+                    <button @click="openEditGroupModal" class="edit-group-btn">
+                        More
+                    </button>
+
+                    
+                </div>
+
+                <form @submit.prevent="sendMessage($graffitiSession.value)">
+                    <fieldset :disabled="sending">
+                        <input type="text" v-model="myMessage" placeholder="Type your message here..."
+                            ref="messageInput" v-focus />
+                        <input type="submit" :value="sending ? 'Sending...' : 'Send'" class="send-button" />
+                    </fieldset>
+                </form>
+
+                <div class="messages-container">
+                    <graffiti-discover v-slot="{ objects: messageObjects, isInitialPolling }"
+                        :channels="[currentGroup.channel]" :schema="messageSchema"
+                        :key="'messages-' + currentGroup.channel + '-' + forceRefresh"
+                        @update="handleMessagesDiscovered">
+                        <ul class="messages">
+                            <li v-if="isInitialPolling" class="loading-message">Loading messages...</li>
+                            <li v-for="message in messageObjects" :key="message.url + '-' + message.value.published"
+                                class="message-item">
+                                <div v-if="editingMessage !== message.url">
+                                    <strong class="message-sender">
+                                        {{ message.actor }}<span v-if="message.actor===$graffitiSession.value.actor"
+                                            class="you-indicator"> (you)</span>
+                                    </strong>:
+                                    <span class="message-content">{{ message.value.content }}</span>
+                                    <span class="message-time">
+                                        {{ new Date(message.value.published).toLocaleTimeString() }}
+                                        <template v-if="message.actor===$graffitiSession.value.actor">
+                                            <button @click="startEditing(message.url, message.value.content)"
+                                                class="edit-btn">✏️</button>
+                                            <button @click="deleteMessage(message, $graffitiSession.value)"
+                                                class="delete-btn">🗑️</button>
+                                        </template>
+                                    </span>
+                                </div>
+                                <div v-else class="edit-form">
+                                    <input type="text" v-model="editMessageContent" ref="editInput"
+                                        @keyup.enter="finishEditing(message, $graffitiSession.value)"
+                                        @keyup.escape="cancelEditing()" />
+                                    <button @click="finishEditing(message, $graffitiSession.value)"
+                                        class="save-btn">Save</button>
+                                    <button @click="cancelEditing()" class="cancel-btn">Cancel</button>
+                                </div>
+                            </li>
+                        </ul>
+                    </graffiti-discover>
+                </div>
+
+                <div v-if="showRenameModal" class="modal-overlay">
+                    <div class="modal-content">
+                        <h3>Rename Group</h3>
+                        <div class="form-group">
+                            <label>New Group Name:</label>
+                            <input type="text" v-model="renameGroupName" ref="renameModalInput" />
+                        </div>
+                        <div class="modal-actions">
+                            <button type="button" @click="showRenameModal = false" class="cancel-btn">
+                                Cancel
+                            </button>
+                            <button type="button" @click="confirmRename($graffitiSession.value)" class="create-btn">
+                                Rename
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div v-if="showEditGroupModal" class="modal-overlay">
+                    <div class="modal-content">
+                        <h3>Edit Group</h3>
+                        <div class="form-group">
+                            <label>Group Name:</label>
+                            <input type="text" v-model="editGroupName" />
+                        </div>
+                        <div class="form-group">
+                            <label>Group Image URL:</label>
+                            <input type="text" v-model="editGroupImage" />
+                        </div>
+                        <div class="modal-actions">
+                            <button type="button" class="cancel-btn" @click="showEditGroupModal = false">
+                                Cancel
+                            </button>
+                            <button type="button" class="create-btn" @click="saveGroupEdits($graffitiSession.value)">
+                                Save Changes
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+            </template>
+        </template>
+    </div>
+
+    <script src="index.js" type="module"></script>
+</body>
+
+</html>
