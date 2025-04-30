@@ -9,6 +9,49 @@ const focusDirective = {
     }
 };
 
+// const GroupCard = {
+//     props: ['group', 'isMember', 'onOpen', 'onJoin', 'onLeave', 'onDelete', 'isCreator'],
+//     template: `
+//         <div class="group-card">
+//             <div class="group-image" @click="onOpen(group.value.object)">
+//                 <img v-if="group.value.object.image" :src="group.value.object.image" alt="Group image" />
+//                 <div v-else class="default-group-image">
+//                     {{ group.value.object.name?.charAt(0).toUpperCase() || 'G' }}
+//                 </div>
+//             </div>
+//             <div class="group-info">
+//                 <h4>{{ group.value.object.name }}</h4>
+//                 <button v-if="isMember" @click="onOpen(group.value.object)" class="open-btn">Open</button>
+//                 <button v-if="isMember" @click="onLeave(group)" class="leave-btn">Leave</button>
+//                 <button v-if="!isMember" @click="onJoin(group)" class="join-btn">Join</button>
+//                 <button v-if="isCreator" @click="onDelete(group)" class="delete-btn">Delete</button>
+//             </div>
+//         </div>
+//     `
+// };
+
+const GroupCard = {
+    props: ['group', 'isMember', 'onOpen', 'onJoin', 'onLeave', 'onDelete', 'isCreator'],
+    template: `
+        <div class="group-card">
+            <div class="group-image" @click="onOpen(group.value.object)">
+                <img v-if="group.value.object.image" :src="group.value.object.image" alt="Group image" />
+                <div v-else class="default-group-image">
+                    {{ (group.value.object.name || 'G').charAt(0).toUpperCase() }}
+                </div>
+            </div>
+            <div class="group-info">
+                <h4>{{ group.value.object.name || 'Unnamed Group' }}</h4>
+                <button v-if="isMember" @click="onOpen(group.value.object)" class="open-btn">Open</button>
+                <button v-if="isMember" @click="onLeave(group)" class="leave-btn">Leave</button>
+                <button v-if="!isMember" @click="onJoin(group.value.object)" class="join-btn">Join</button>
+                <button v-if="isCreator" @click="onDelete(group)" class="delete-btn">Delete</button>
+            </div>
+        </div>
+    `
+};
+
+
 createApp({
     data() {
         return {
@@ -98,7 +141,12 @@ createApp({
                         }
                     }
                 }
-            }
+            },
+            profile: null,
+            showProfileModal: false,
+            editName: "",
+            editPronouns: "",
+            editBio: ""
         };
     },
 
@@ -169,10 +217,45 @@ createApp({
             }
         },
 
+        // async enterGroup(group) {
+        //     this.currentGroup = {
+        //         ...group,
+        //         creator: group.actor
+        //     };
+        //     this.currentView = 'group';
+        //     this.myMessage = "";
+
+        //     const alreadyJoined = this.myGroups.includes(group.channel);
+        //     if (!alreadyJoined) {
+        //         const joinObject = {
+        //             value: {
+        //                 activity: 'Join',
+        //                 object: {
+        //                     type: 'Group Chat',
+        //                     name: group.name || 'Unnamed Group',
+        //                     channel: group.channel,
+        //                     image: group.image || null
+        //                 }
+        //             },
+        //             channels: ['designftw']
+        //         };
+
+        //         try {
+        //             await this.$graffiti.put(joinObject, this.$graffitiSession.value);
+        //             this.myGroups.push(group.channel);
+        //         } catch (error) {
+        //             console.error("Join PUT failed:", error);
+        //         }
+        //     }
+
+        //     this.forceRefresh++;
+        // },
         async enterGroup(group) {
             this.currentGroup = {
-                ...group,
-                creator: group.actor 
+                name: group.name || 'Unnamed Group',
+                channel: group.channel,
+                image: group.image || null,
+                creator: group.actor
             };
             this.currentView = 'group';
             this.myMessage = "";
@@ -302,7 +385,7 @@ createApp({
 
         async confirmRename(session) {
             if (!this.renameGroupName.trim()) return;
-    
+
             try {
                 await this.$graffiti.put({
                     value: {
@@ -311,7 +394,7 @@ createApp({
                     },
                     channels: [this.currentGroup.channel]
                 }, session);
-    
+
                 this.currentGroup.name = this.renameGroupName;
                 this.showRenameModal = false;
                 this.forceRefresh++;
@@ -352,9 +435,9 @@ createApp({
                     const activity = obj.value.activity;
 
                     if (activity === 'Create' || activity === 'Join') {
-                        channelStates.set(channel, true); 
+                        channelStates.set(channel, true);
                     } else if (activity === 'Leave') {
-                        channelStates.set(channel, false); 
+                        channelStates.set(channel, false);
                     }
                 });
 
@@ -393,6 +476,97 @@ createApp({
                 console.error("Failed to leave group:", error);
                 alert("Failed to leave group. Please try again.");
             }
+        },
+        async loadProfile(actorUri) {
+            try {
+                console.log("Loading profile for:", actorUri);
+
+                const discovery = await this.$graffiti.discover({
+                    schema: {
+                        properties: {
+                            value: {
+                                required: ['describes', 'published'],
+                                properties: {
+                                    describes: { type: 'string' },
+                                    published: { type: 'number' },
+                                    name: { type: 'string' },
+                                    pronouns: { type: 'string' },
+                                    bio: { type: 'string' }
+                                }
+                            }
+                        }
+                    },
+                    channels: [actorUri]
+                });
+
+                console.log("Discovery response:", discovery);
+
+                const results = discovery.objects || [];
+                console.log("Profile objects found:", results);
+
+                const latest = results
+                    .filter(obj => obj.value.describes === actorUri)
+                    .sort((a, b) => b.value.published - a.value.published)[0];
+
+                this.profile = latest?.value || null;
+                if (this.profile) {
+                    this.editName = this.profile.name || "";
+                    this.editPronouns = this.profile.pronouns || "";
+                    this.editBio = this.profile.bio || "";
+                }
+
+            } catch (e) {
+                console.error("Failed to load profile:", e);
+            }
+        },
+
+        async saveProfile(session) {
+            try {
+                const newProfile = {
+                    describes: session.actor,
+                    name: this.editName,
+                    pronouns: this.editPronouns,
+                    bio: this.editBio,
+                    published: Date.now()
+                };
+
+                await this.$graffiti.put({
+                    value: newProfile,
+                    channels: [session.actor]
+                }, session);
+
+                this.profile = newProfile;
+                this.showProfileModal = false;
+
+                this.forceRefresh++;
+            } catch (e) {
+                console.error("Failed to save profile:", e);
+                alert("Error saving profile.");
+            }
+        },
+
+        getUserName(actorUri) {
+            if (actorUri === this.$graffitiSession.value?.actor) {
+                return this.profile?.name || actorUri.split('/').pop() || 'Anonymous';
+            }
+            return actorUri.split('/').pop() || 'Anonymous';
+        },
+
+        getUserPronouns(actorUri) {
+            return this.profile?.pronouns || '';
+        }
+
+
+    },
+
+    watch: {
+        profile: {
+            handler(newProfile) {
+                if (newProfile) {
+                    this.forceRefresh++;
+                }
+            },
+            deep: true
         }
     },
     mounted() {
@@ -405,24 +579,28 @@ createApp({
                 }
 
                 try {
-                    const result = await this.$graffiti.query({
+                    const discovery = await this.$graffiti.discover({
                         schema: this.groupDiscoverSchema,
                         channels: ['designftw']
                     });
 
-                    this.myGroups = result
+                    const results = discovery.objects || [];
+                    this.myGroups = results
                         .filter(obj => obj.actor === session.actor)
                         .map(obj => obj.value.object.channel);
-
                 } catch (e) {
                     console.error("Failed to auto-discover groups:", e);
                 }
+
+                await this.loadProfile(session.actor);
             },
             { immediate: true }
         );
     }
 })
+
     .directive('focus', focusDirective)
+    .component('group-card', GroupCard)
     .use(GraffitiPlugin, {
         // graffiti: new GraffitiLocal(),
         graffiti: new GraffitiRemote(),

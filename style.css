@@ -1,5 +1,5 @@
 * {
-    font-family: 'Nunito', 'Segoe UI', 'Helvetica Neue', sans-serif;
+    font-family: 'Inter', 'Segoe UI', 'Helvetica Neue', sans-serif;
     box-sizing: border-box;
     margin: 0;
     padding: 0;
@@ -9,8 +9,8 @@ body {
     max-width: 900px;
     margin: 0 auto;
     padding: 30px;
-    background-color: #fffafc;
-    background-image: linear-gradient(135deg, #ffe8f0 0%, #e5f0ff 100%);
+    background-color: #f5fcff;
+    background-image: linear-gradient(135deg, #e8f7ff 0%, #e2fff7 100%);
 }
 
 #app {
@@ -18,21 +18,21 @@ body {
     padding: 30px;
     border-radius: 20px;
     box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08);
-    border: 2px solid #f0e6ff;
+    border: 2px solid #d2f4f0;
 }
 
 h1,
 h2,
 h3 {
-    color: #805ad5;
+    color: #2b7a78;
     margin-bottom: 15px;
 }
 
 h1 {
     font-size: 2.5rem;
     text-align: center;
-    font-family: 'Pacifico', cursive;
-    color: #d63384;
+    font-family: 'Playfair Display', serif;
+    color: #3aafa9;
     margin-bottom: 30px;
 }
 
@@ -46,31 +46,31 @@ h1 {
 button,
 input[type="submit"] {
     cursor: pointer;
-    background: #ff80ab;
+    background: #3aafa9;
     color: white;
     border: none;
     border-radius: 12px;
     padding: 10px 18px;
     font-size: 0.95rem;
     transition: all 0.2s ease;
-    box-shadow: 0 3px 6px rgba(255, 128, 171, 0.3);
+    box-shadow: 0 3px 6px rgba(58, 175, 169, 0.3);
 }
 
 button:hover {
-    background: #ff5c9f;
+    background: #2b7a78;
     transform: translateY(-1px);
-    box-shadow: 0 5px 10px rgba(255, 128, 171, 0.4);
+    box-shadow: 0 5px 10px rgba(58, 175, 169, 0.4);
 }
 
 .create-group-btn {
-    background: #ff80ab;
+    background: #3aafa9;
     padding: 10px 22px;
     font-size: 16px;
 }
 
 .back-button {
-    background: #c0c0c0;
-    box-shadow: 0 2px 5px rgba(192, 192, 192, 0.4);
+    background: #cccccc;
+    box-shadow: 0 2px 5px rgba(200, 200, 200, 0.4);
 }
 
 .modal-overlay {
@@ -93,13 +93,13 @@ button:hover {
     width: 90%;
     max-width: 500px;
     box-shadow: 0 8px 30px rgba(0, 0, 0, 0.15);
-    border: 2px solid #ffd6e0;
+    border: 2px solid #aeeff2;
 }
 
 .form-group label {
     display: block;
     font-weight: 600;
-    color: #6a4c93;
+    color: #205c5a;
     margin-bottom: 8px;
 }
 
@@ -107,17 +107,17 @@ input[type="text"],
 textarea {
     width: 100%;
     padding: 12px 15px;
-    border: 2px solid #f3d1f4;
+    border: 2px solid #b7ecec;
     border-radius: 10px;
     transition: border-color 0.3s;
-    background: #fffafd;
+    background: #f9ffff;
 }
 
 input[type="text"]:focus,
 textarea:focus {
-    border-color: #d88dd1;
+    border-color: #66c2ba;
     outline: none;
-    box-shadow: 0 0 0 4px rgba(216, 141, 209, 0.2);
+    box-shadow: 0 0 0 4px rgba(102, 194, 186, 0.2);
 }
 
 .group-sections {
@@ -128,16 +128,16 @@ textarea:focus {
 
 .group-section {
     flex: 1;
-    background: #fff1f9;
+    background: #e6fffb;
     padding: 20px;
     border-radius: 14px;
-    border: 2px dashed #ffd6e0;
+    border: 2px dashed #aeeff2;
 }
 
 .group-section h3 {
-    color: #d63384;
+    color: #3aafa9;
     margin-bottom: 12px;
-    border-bottom: 2px solid #ffb3c6;
+    border-bottom: 2px solid #91e0dd;
     padding-bottom: 6px;
 }
 
@@ -148,16 +148,16 @@ textarea:focus {
 }
 
 .group-card {
-    border: 2px solid #ffd6e0;
+    border: 2px solid #aeeff2;
     border-radius: 16px;
     transition: 0.2s;
-    background: #fffafd;
+    background: #f9ffff;
     overflow: hidden;
 }
 
 .group-card:hover {
     transform: scale(1.03);
-    box-shadow: 0 8px 12px rgba(255, 128, 171, 0.2);
+    box-shadow: 0 8px 12px rgba(58, 175, 169, 0.2);
 }
 
 .group-image,
@@ -166,11 +166,11 @@ textarea:focus {
     display: flex;
     justify-content: center;
     align-items: center;
-    background: #ffe5f1;
-    color: #d63384;
+    background: #d9faff;
+    color: #2b7a78;
     font-weight: bold;
     font-size: 32px;
-    border-bottom: 1px solid #ffb3c6;
+    border-bottom: 1px solid #91e0dd;
 }
 
 .default-group-image {
@@ -185,29 +185,29 @@ textarea:focus {
 .open-btn,
 .join-btn {
     font-size: 0.9rem;
-    background: #f06292;
+    background: #66c2ba;
     margin: 4px auto;
 }
 
 .messages {
-    background: #fffafd;
+    background: #f9ffff;
     padding: 15px;
-    border: 2px solid #ffd6e0;
+    border: 2px solid #aeeff2;
     border-radius: 14px;
     max-height: 400px;
     overflow-y: auto;
 }
 
 .message-item {
-    background: #ffeef5;
+    background: #e6fdfd;
     padding: 10px 12px;
-    border-left: 5px solid #f06292;
+    border-left: 5px solid #3aafa9;
     border-radius: 10px;
     margin-bottom: 10px;
 }
 
 .message-sender {
-    color: #e91e63;
+    color: #2b7a78;
     font-weight: bold;
 }
 
@@ -218,7 +218,7 @@ textarea:focus {
 }
 
 .edit-form input {
-    border-color: #ffc1e3;
+    border-color: #a2dedc;
 }
 
 .save-btn {
@@ -238,9 +238,9 @@ textarea:focus {
 .rename-btn,
 .edit-btn,
 .edit-group-btn {
-    background: #ffd6e0;
-    color: #d63384;
-    border: 1px solid #ffb3c6;
+    background: #e0ffff;
+    color: #2b7a78;
+    border: 1px solid #91e0dd;
     font-weight: bold;
     padding: 6px 12px;
     border-radius: 8px;
@@ -249,12 +249,11 @@ textarea:focus {
 .rename-btn:hover,
 .edit-btn:hover,
 .edit-group-btn:hover {
-    background: #ffc1e3;
+    background: #c8f5f5;
 }
 
 .leave-btn,
 .delete-btn {
-    background: #f44336;
     padding: 8px 14px;
     font-size: 14px;
     border-radius: 10px;
@@ -284,7 +283,6 @@ textarea:focus {
     }
 }
 
-
 .group-header {
     display: flex;
     align-items: center;
@@ -298,7 +296,7 @@ textarea:focus {
     flex-grow: 1;
     font-size: 1.5em;
     margin: 0;
-    color: #6a4c93;
+    color: #205c5a;
 }
 
 .group-avatar {
@@ -306,7 +304,7 @@ textarea:focus {
     height: 60px;
     border-radius: 50%;
     overflow: hidden;
-    background-color: #f3e5ff;
+    background-color: #d6fff6;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -315,7 +313,7 @@ textarea:focus {
 .default-avatar {
     width: 100%;
     height: 100%;
-    background-color: #ffb3c6;
+    background-color: #91e0dd;
     color: white;
     font-size: 20px;
     font-weight: bold;
@@ -329,8 +327,8 @@ textarea:focus {
     padding: 6px 12px;
     font-size: 0.9rem;
     background-color: #fff;
-    color: #ffb3c6;
-    border: 1px solid #ffb3c6;
+    color: #66c2ba;
+    border: 1px solid #91e0dd;
     border-radius: 8px;
     margin-left: 10px;
     transition: background-color 0.2s ease;
@@ -338,5 +336,40 @@ textarea:focus {
 
 .group-header .edit-group-btn:hover,
 .group-header .edit-btn:hover {
-    background-color: #f3e5ff;
+    background-color: #d6fff6;
+}
+
+.profile-info {
+    margin-bottom: 15px;
+    padding: 15px;
+    background: #e6fffb;
+    border-radius: 10px;
+    border: 2px solid #aeeff2;
+}
+
+.profile-field {
+    margin-bottom: 8px;
+}
+
+.profile-field strong {
+    color: #205c5a;
+    margin-right: 8px;
+}
+
+textarea {
+    width: 100%;
+    min-height: 100px;
+    padding: 12px;
+    border: 2px solid #b7ecec;
+    border-radius: 10px;
+    resize: vertical;
+    font-family: 'Inter', sans-serif;
+}
+
+.message-sender::after {
+    content: attr(data-pronouns);
+    font-weight: normal;
+    color: #888;
+    font-size: 0.8em;
+    margin-left: 5px;
 }
