@@ -29,9 +29,8 @@ const focusDirective = {
 //         </div>
 //     `
 // };
-
 const GroupCard = {
-    props: ['group', 'isMember', 'onOpen', 'onJoin', 'onLeave', 'onDelete', 'isCreator'],
+    props: ['group', 'isMember', 'onOpen', 'onJoin', 'onLeave', 'isCreator'],
     template: `
         <div class="group-card">
             <div class="group-image" @click="onOpen(group.value.object)">
@@ -45,7 +44,6 @@ const GroupCard = {
                 <button v-if="isMember" @click="onOpen(group.value.object)" class="open-btn">Open</button>
                 <button v-if="isMember" @click="onLeave(group)" class="leave-btn">Leave</button>
                 <button v-if="!isMember" @click="onJoin(group.value.object)" class="join-btn">Join</button>
-                <button v-if="isCreator" @click="onDelete(group)" class="delete-btn">Delete</button>
             </div>
         </div>
     `
@@ -146,11 +144,208 @@ createApp({
             showProfileModal: false,
             editName: "",
             editPronouns: "",
-            editBio: ""
+            editBio: "",
+            pinnedMessages: [],
+            showPinnedDropdown: false,
+            pinningMessage: null,
+            messageObjects: [],
+            isLoadingPins: false,
+            pinSchema: {
+                properties: {
+                    value: {
+                        required: ['activity', 'describes', 'published'],
+                        properties: {
+                            activity: { type: 'string', const: 'Pin' },
+                            describes: { type: 'string' },
+                            published: { type: 'number' }
+                        }
+                    }
+                }
+            },
+            pinnedMessageUrls: new Set(),
+            messageCache: new Map(),
+            myPinnedMessageUrls: new Set(),
         };
     },
 
+    computed: {
+        isMessagePinned() {
+            return (messageUrl) => this.pinnedMessageUrls.has(messageUrl);
+        }
+    },
+
     methods: {
+        // async pinMessage(message, session) {
+        //     const messageUrl = message.url;
+        //     const actor = session.actor;
+        
+        //     // Check if this user has already pinned it
+        //     const existingPin = this.pinnedMessages.find(
+        //         pin => pin.value.describes === messageUrl && pin.actor === actor
+        //     );
+        
+        //     try {
+        //         if (existingPin) {
+        //             // If already pinned, unpin it
+        //             await this.$graffiti.delete(existingPin, session);
+        //             this.pinnedMessages = this.pinnedMessages.filter(p => p !== existingPin);
+        //             this.pinnedMessageUrls.delete(messageUrl);
+        //         } else {
+        //             // Otherwise, pin it
+        //             const pinActivity = {
+        //                 value: {
+        //                     activity: 'Pin',
+        //                     describes: messageUrl,
+        //                     published: Date.now()
+        //                 },
+        //                 channels: [this.currentGroup.channel]
+        //             };
+        
+        //             const result = await this.$graffiti.put(pinActivity, session);
+        //             this.pinnedMessages.unshift({
+        //                 url: result.url,
+        //                 actor: actor,
+        //                 value: pinActivity.value
+        //             });
+        //             this.pinnedMessageUrls.add(messageUrl);
+        //         }
+        
+        //         this.$forceUpdate(); // refresh pinned dropdown and UI
+        //     } catch (error) {
+        //         console.error("Failed to pin/unpin message:", error);
+        //         alert("Could not update pin.");
+        //     }
+        // },
+        async pinMessage(message, session) {
+            const messageUrl = message.url;
+            const actor = session.actor;
+        
+            const existingPin = this.pinnedMessages.find(
+                pin => pin.value.describes === messageUrl && pin.actor === actor
+            );
+        
+            try {
+                if (existingPin) {
+                    await this.$graffiti.delete(existingPin, session);
+                    this.pinnedMessages = this.pinnedMessages.filter(p => p !== existingPin);
+                    this.pinnedMessageUrls.delete(messageUrl);
+                    this.myPinnedMessageUrls.delete(messageUrl);
+                } else {
+                    const pinActivity = {
+                        value: {
+                            activity: 'Pin',
+                            describes: messageUrl,
+                            published: Date.now()
+                        },
+                        channels: [this.currentGroup.channel]
+                    };
+        
+                    const result = await this.$graffiti.put(pinActivity, session);
+        
+                    this.pinnedMessages.unshift({
+                        url: result.url,
+                        actor: actor,
+                        value: pinActivity.value
+                    });
+        
+                    this.pinnedMessageUrls.add(messageUrl);
+                    this.myPinnedMessageUrls.add(messageUrl);
+                }
+        
+                this.$forceUpdate();
+            } catch (error) {
+                console.error("Failed to pin/unpin message:", error);
+                alert("Could not update pin.");
+            }
+        },        
+        
+        async unpinMessage(pin) {
+            try {
+                await this.$graffiti.delete(pin, this.$graffitiSession.value);
+                this.forceRefresh++; // Trigger discovery refresh
+            } catch (error) {
+                console.error("Failed to unpin:", error);
+            }
+        },
+        async loadPinnedMessages() {
+            if (!this.currentGroup?.channel) return;
+
+            this.isLoadingPins = true;
+            try {
+                const discovery = await this.$graffiti.discover({
+                    schema: this.pinSchema,
+                    channels: [this.currentGroup.channel]
+                });
+
+                this.pinnedMessages = (discovery.objects || [])
+                    .sort((a, b) => b.value.published - a.value.published);
+
+                this.pinnedMessageUrls = new Set(
+                    this.pinnedMessages.map(pin => pin.value.describes)
+                );
+
+                // Pre-fetch content for all pinned messages
+                this.pinnedMessages.forEach(pin => {
+                    if (!this.messageCache.has(pin.value.describes)) {
+                        this.fetchMessage(pin.value.describes);
+                    }
+                });
+
+            } catch (error) {
+                console.error("Failed to load pinned messages:", error);
+            } finally {
+                this.isLoadingPins = false;
+            }
+        },
+
+        togglePinnedDropdown() {
+            console.log('Toggle clicked - current state:', this.showPinnedDropdown);
+            console.log('Current group exists:', !!this.currentGroup);
+            this.showPinnedDropdown = !this.showPinnedDropdown;
+            console.log('New state:', this.showPinnedDropdown);
+            if (this.showPinnedDropdown && this.currentGroup) {
+                console.log('Loading pinned messages...');
+                this.loadPinnedMessages();
+            }
+        },
+
+        togglePinnedVisibility() {
+            this.showPinned = !this.showPinned;
+        },
+
+        findMessageContent(messageUrl) {
+            // First check the current messages
+            const message = this.messageObjects.find(m => m.url === messageUrl);
+            if (message) return message.value.content;
+
+            // Then check the message cache
+            if (this.messageCache.has(messageUrl)) {
+                return this.messageCache.get(messageUrl);
+            }
+
+            // If not found, fetch it immediately and return a loading message
+            this.fetchMessage(messageUrl);
+            return "Loading...";
+        },
+
+        async fetchMessage(messageUrl) {
+            try {
+                const response = await this.$graffiti.get(messageUrl, { schema: this.messageSchema });
+                if (response?.value?.content) {
+                    this.messageCache.set(messageUrl, response.value.content);
+                    // Force update to refresh the pinned messages display
+                    this.$forceUpdate();
+                } else {
+                    this.messageCache.set(messageUrl, "[Message not available]");
+                    this.$forceUpdate();
+                }
+            } catch (error) {
+                console.error('Failed to fetch message:', error);
+                this.messageCache.set(messageUrl, "[Message not available]");
+                this.$forceUpdate();
+            }
+        },
+
         async sendMessage(session) {
             if (!this.myMessage || !this.currentGroup) return;
 
@@ -340,9 +535,45 @@ createApp({
             }
         },
 
-        handleMessagesDiscovered({ objects: messages }) {
-            this.messageObjects = messages.sort((a, b) => b.value.published - a.value.published);
+        handleMessagesDiscovered({ objects }) {
+            console.log("📨 Discovered messages:", objects.map(m => m.url));
+            this.messageObjects = objects.sort((a, b) => b.value.published - a.value.published);
+            objects.forEach(msg => {
+                this.messageCache.set(msg.url, msg.value.content);
+            });
+            this.$forceUpdate();
         },
+
+
+        // handlePinsDiscovered({ objects }) {
+        //     console.log("📌 Discovered pins:", objects.map(p => p.value.describes)); // <-- Add this
+
+        //     this.pinnedMessages = objects.sort((a, b) => b.value.published - a.value.published);
+        //     this.pinnedMessageUrls = new Set(objects.map(pin => pin.value.describes));
+        // },
+        handlePinsDiscovered({ objects }) {
+            const me = this.$graffitiSession?.value?.actor;
+        
+            this.pinnedMessages = objects.sort((a, b) => b.value.published - a.value.published);
+        
+            // All pinned messages
+            this.pinnedMessageUrls = new Set(objects.map(pin => pin.value.describes));
+        
+            // Only messages YOU pinned
+            this.myPinnedMessageUrls = new Set(
+                objects.filter(pin => pin.actor === me).map(pin => pin.value.describes)
+            );
+        
+            // Pre-fetch content
+            this.pinnedMessages.forEach(pin => {
+                if (!this.messageCache.has(pin.value.describes)) {
+                    this.fetchMessage(pin.value.describes);
+                }
+            });
+        
+            this.$forceUpdate();
+        },        
+
 
         openRenameModal() {
             this.renameGroupName = this.currentGroup.name;
@@ -422,32 +653,69 @@ createApp({
             this.groupObjects = objects;
         },
 
+        // filteredMyGroups(objects) {
+        //     if (!this.$graffitiSession.value || !objects) return [];
+
+        //     const myActor = this.$graffitiSession.value.actor;
+        //     const channelStates = new Map();
+
+        //     objects
+        //         .filter(obj => obj.actor === myActor)
+        //         .forEach(obj => {
+        //             const channel = obj.value.object.channel;
+        //             const activity = obj.value.activity;
+
+        //             if (activity === 'Create' || activity === 'Join') {
+        //                 channelStates.set(channel, true);
+        //             } else if (activity === 'Leave') {
+        //                 channelStates.set(channel, false);
+        //             }
+        //         });
+
+        //     return objects.filter(obj => {
+        //         const channel = obj.value.object.channel;
+        //         return channelStates.get(channel) === true &&
+        //             obj.actor === myActor &&
+        //             ['Create', 'Join'].includes(obj.value.activity);
+        //     });
+        // },
         filteredMyGroups(objects) {
             if (!this.$graffitiSession.value || !objects) return [];
-
+        
             const myActor = this.$graffitiSession.value.actor;
             const channelStates = new Map();
-
+        
+            // Track latest join/leave state
             objects
                 .filter(obj => obj.actor === myActor)
                 .forEach(obj => {
                     const channel = obj.value.object.channel;
                     const activity = obj.value.activity;
-
+        
                     if (activity === 'Create' || activity === 'Join') {
                         channelStates.set(channel, true);
                     } else if (activity === 'Leave') {
                         channelStates.set(channel, false);
                     }
                 });
-
-            return objects.filter(obj => {
+        
+            // Deduplicate by channel using a Map
+            const uniqueGroups = new Map();
+            objects.forEach(obj => {
                 const channel = obj.value.object.channel;
-                return channelStates.get(channel) === true &&
+                if (
                     obj.actor === myActor &&
-                    ['Create', 'Join'].includes(obj.value.activity);
+                    channelStates.get(channel) === true &&
+                    ['Create', 'Join'].includes(obj.value.activity)
+                ) {
+                    if (!uniqueGroups.has(channel)) {
+                        uniqueGroups.set(channel, obj);
+                    }
+                }
             });
-        },
+        
+            return Array.from(uniqueGroups.values());
+        },        
 
         async leaveGroup(groupObj) {
             if (!confirm(`Are you sure you want to leave "${groupObj.value.object.name}"?`)) return;
@@ -519,6 +787,24 @@ createApp({
                 console.error("Failed to load profile:", e);
             }
         },
+        scrollToMessage(messageUrl) {
+            const messageEl = document.querySelector(`[data-message-url="${messageUrl}"]`);
+            if (messageEl) {
+                messageEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                messageEl.classList.add('highlight-message');
+                setTimeout(() => {
+                    messageEl.classList.remove('highlight-message');
+                }, 2000);
+            }
+        },
+        scrollToMessage(messageUrl) {
+            const element = document.querySelector(`[data-message-url="${messageUrl}"]`);
+            if (element) {
+                element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                element.classList.add('highlight-message');
+                setTimeout(() => element.classList.remove('highlight-message'), 2000);
+            }
+        },
 
         async saveProfile(session) {
             try {
@@ -560,6 +846,15 @@ createApp({
     },
 
     watch: {
+        currentGroup: {
+            async handler(newGroup) {
+                if (newGroup) {
+                    await this.loadPinnedMessages();
+                }
+            },
+            immediate: true
+        },
+
         profile: {
             handler(newProfile) {
                 if (newProfile) {
@@ -570,40 +865,53 @@ createApp({
         }
     },
     mounted() {
+        // this.$watch(
+        //     () => this.$graffitiSession.value,
+        //     async (session) => {
+        //         if (!session) {
+        //             this.myGroups = [];
+        //             return;
+        //         }
+
+        //         try {
+        //             const discovery = await this.$graffiti.discover({
+        //                 schema: this.groupDiscoverSchema,
+        //                 channels: ['designftw']
+        //             });
+
+        //             const results = discovery.objects || [];
+        //             this.myGroups = results
+        //                 .filter(obj => obj.actor === session.actor)
+        //                 .map(obj => obj.value.object.channel);
+        //         } catch (e) {
+        //             console.error("Failed to auto-discover groups:", e);
+        //         }
+
+        //         await this.loadProfile(session.actor);
+        //     },
+        //     { immediate: true }
+        // );
+        console.log('Graffiti instance:', this.$graffiti); // Verify Graffiti is available
+        console.log('Graffiti session:', this.$graffitiSession.value); // Verify session
+
         this.$watch(
             () => this.$graffitiSession.value,
             async (session) => {
-                if (!session) {
-                    this.myGroups = [];
-                    return;
+                console.log('Session changed:', session); // Debug log
+                if (session) {
+                    await this.loadPinnedMessages(session);
                 }
-
-                try {
-                    const discovery = await this.$graffiti.discover({
-                        schema: this.groupDiscoverSchema,
-                        channels: ['designftw']
-                    });
-
-                    const results = discovery.objects || [];
-                    this.myGroups = results
-                        .filter(obj => obj.actor === session.actor)
-                        .map(obj => obj.value.object.channel);
-                } catch (e) {
-                    console.error("Failed to auto-discover groups:", e);
-                }
-
-                await this.loadProfile(session.actor);
             },
             { immediate: true }
         );
+
     }
 })
 
     .directive('focus', focusDirective)
     .component('group-card', GroupCard)
     .use(GraffitiPlugin, {
-        // graffiti: new GraffitiLocal(),
-        graffiti: new GraffitiRemote(),
+        graffiti: new GraffitiLocal(),
+        // graffiti: new GraffitiRemote(),
     })
     .mount("#app");
-
