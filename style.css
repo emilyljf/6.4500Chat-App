@@ -13,6 +13,8 @@ body {
     padding: 30px;
     background-color: #f5fcff;
     background-image: linear-gradient(135deg, #e8f7ff 0%, #e2fff7 100%);
+    overflow: hidden;
+    height: 100%;
 }
 
 
@@ -23,6 +25,10 @@ body {
     border-radius: 20px;
     box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08);
     border: 2px solid #d2f4f0;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
 }
 
 
@@ -82,6 +88,7 @@ button:hover {
     background: #3aafa9;
     padding: 10px 22px;
     font-size: 16px;
+    margin-bottom: 20px;
 }
 
 
@@ -167,10 +174,13 @@ textarea:focus {
 
 
 
+/* 
 .group-sections {
     display: flex;
     gap: 30px;
     margin-top: 25px;
+    height: 400px;
+    flex:1;
 }
 
 
@@ -181,15 +191,58 @@ textarea:focus {
     padding: 20px;
     border-radius: 14px;
     border: 2px dashed #aeeff2;
+    overflow-y: auto;
 }
 
 
 
 .group-section h3 {
-    color: #3aafa9;
-    margin-bottom: 12px;
+    position: sticky;
+    top: 0;
+    background: #e6fffb;
+    z-index: 1;
+    padding: 10px 0;
+    margin: 0 !important;
     border-bottom: 2px solid #91e0dd;
-    padding-bottom: 6px;
+}
+ */
+.group-sections {
+    display: flex;
+    gap: 30px;
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+    overflow-x: hidden;
+}
+
+.group-section {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    background: #e6fffb;
+    border-radius: 14px;
+    border: 2px dashed #aeeff2;
+    overflow-y: auto;
+    padding: 20px;
+    position: relative;
+    overflow-x: hidden;
+}
+
+.group-section h3 {
+    position: sticky;
+    top: 0;
+    background: #e6fffb;
+    z-index: 2;
+    padding: 15px;
+    border-bottom: 2px solid #91e0dd;
+    margin: 0;
+}
+
+.group-cards {
+    padding: 20px;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+    gap: 20px;
 }
 
 
@@ -198,6 +251,7 @@ textarea:focus {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
     gap: 20px;
+
 }
 
 
@@ -266,18 +320,6 @@ textarea:focus {
 }
 
 
-
-.messages {
-    background: #f9ffff;
-    padding: 15px;
-    border: 2px solid #aeeff2;
-    border-radius: 14px;
-    max-height: 400px;
-    overflow-y: auto;
-}
-
-
-
 .message-item {
     background: #e6fdfd;
     padding: 10px 12px;
@@ -285,8 +327,13 @@ textarea:focus {
     border-radius: 10px;
     margin-bottom: 10px;
     position: relative;
+    margin-top: 8px;
+    margin-bottom: 8px;
 }
 
+.message-item:last-child {
+    margin-bottom: 0;
+}
 
 
 .message-sender {
@@ -490,11 +537,11 @@ textarea {
     margin-left: 5px;
 }
 
-
+/* 
 
 .pinned-messages-container {
     margin-bottom: 20px;
-}
+} */
 
 
 
@@ -564,7 +611,7 @@ textarea {
     margin-right: 10px;
 }
 
- .unpin-btn {
+.unpin-btn {
     background: none;
     border: none;
     cursor: pointer;
@@ -639,16 +686,6 @@ textarea {
     flex-grow: 1;
 }
 
-
-
-/* Pinned message styles */
-.pinned-message {
-    border-left: 5px solid #FFD700;
-    background-color: #fffde7;
-}
-
-
-
 .active-pin {
     color: #FFD700 !important;
 }
@@ -659,22 +696,6 @@ textarea {
     animation: highlight 2s ease;
 }
 
-
-
-.debug-buttons {
-    margin: 10px 0;
-    padding: 10px;
-    background: #f0f0f0;
-    border-radius: 5px;
-}
-
-
-
-.debug-buttons button {
-    margin-right: 5px;
-    background: #666;
-    font-size: 12px;
-}
 
 
 .pinned-section {
@@ -696,13 +717,6 @@ textarea {
     justify-content: space-between;
     align-items: center;
 }
-
-
-
-.pinned-messages {
-    margin-top: 10px;
-}
-
 
 
 .pinned-content {
@@ -729,13 +743,19 @@ textarea {
 
 
 @keyframes highlight {
-    0% { background-color: #fffde7; }
+    0% {
+        background-color: #fffde7;
+    }
 
 
-    50% { background-color: #fff59d; }
+    50% {
+        background-color: #fff59d;
+    }
 
 
-    100% { background-color: #fffde7; }
+    100% {
+        background-color: #fffde7;
+    }
 
 
 }
@@ -759,12 +779,6 @@ textarea {
     transition: all 0.3s ease;
 }
 
-
-
-
-
-
-
 .active-pin {
     color: gold;
     transform: scale(1.2);
@@ -783,7 +797,7 @@ textarea {
     display: inline-block;
     width: 12px;
     height: 12px;
-    border: 2px solid rgba(0,0,0,0.1);
+    border: 2px solid rgba(0, 0, 0, 0.1);
     border-radius: 50%;
     border-top-color: #3aafa9;
     animation: spin 1s ease-in-out infinite;
@@ -791,8 +805,6 @@ textarea {
 }
 
 
-
-/* Pinned Dropdown Styles */
 .pinned-dropdown-container {
     margin: 10px 0;
     position: relative;
@@ -852,7 +864,7 @@ textarea {
     border-radius: 0 0 8px 8px;
     max-height: 300px;
     overflow-y: auto;
-    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
 }
 
 
@@ -907,10 +919,14 @@ textarea {
 
 
 @keyframes spin {
-    0% { transform: rotate(0deg); }
+    0% {
+        transform: rotate(0deg);
+    }
 
 
-    100% { transform: rotate(360deg); }
+    100% {
+        transform: rotate(360deg);
+    }
 
 
 }
@@ -932,49 +948,13 @@ textarea {
 
 
 
-.pinned-item {
-    padding: 8px 0;
-    border-bottom: 1px dashed #91e0dd;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    cursor: pointer;
-    transition: background-color 0.2s;
-}
 
-
-
-.pinned-message {
-    border-left: 5px solid gold;
-    background-color: #fffde7;
-  }
-
-
-  
 
 .pinned-content {
     flex-grow: 1;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-}
-
-
-
-.pinned-message {
-    border-left: 4px solid gold;
-    background-color: #fffde7;
-  }
-
-.pin-btn {
-    background: none;
-    border: none;
-    cursor: pointer;
-    font-size: 1.2em;
-    margin-left: 8px;
-    padding: 0 5px;
-    color: #3aafa9;
-    transition: all 0.2s ease;
 }
 
 .pin-btn.active-pin {
@@ -989,4 +969,77 @@ textarea {
 
 .pin-btn.active-pin:hover {
     color: gold !important;
+}
+
+/* Update in style.css */
+/* 
+.messages-container {
+    flex:1;
+    height: 400px;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    border: 2px solid #aeeff2;
+    border-radius: 14px;
+    background: #f9ffff;
+    overflow: visible;
+}
+
+
+.messages {
+    flex: 1;
+
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    overflow-y: auto;
+    min-height: 0;
+    padding: 15px;
+    border-radius: 14px;
+} */
+
+html,
+body {
+    height: 100%;
+    margin: 0 auto;
+    padding: 0;
+    /* overflow: hidden; */
+}
+
+#app {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.messages-container {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    border: 2px solid #aeeff2;
+    border-radius: 14px;
+    background: #f9ffff;
+}
+
+.messages {
+    flex: 1;
+    overflow-y: auto;
+}
+
+.group-chat-view {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+
+.delete-btn {
+    background: #ff4d4f;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    padding: 8px 14px;
 }

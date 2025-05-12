@@ -9,26 +9,6 @@ const focusDirective = {
     }
 };
 
-// const GroupCard = {
-//     props: ['group', 'isMember', 'onOpen', 'onJoin', 'onLeave', 'onDelete', 'isCreator'],
-//     template: `
-//         <div class="group-card">
-//             <div class="group-image" @click="onOpen(group.value.object)">
-//                 <img v-if="group.value.object.image" :src="group.value.object.image" alt="Group image" />
-//                 <div v-else class="default-group-image">
-//                     {{ group.value.object.name?.charAt(0).toUpperCase() || 'G' }}
-//                 </div>
-//             </div>
-//             <div class="group-info">
-//                 <h4>{{ group.value.object.name }}</h4>
-//                 <button v-if="isMember" @click="onOpen(group.value.object)" class="open-btn">Open</button>
-//                 <button v-if="isMember" @click="onLeave(group)" class="leave-btn">Leave</button>
-//                 <button v-if="!isMember" @click="onJoin(group)" class="join-btn">Join</button>
-//                 <button v-if="isCreator" @click="onDelete(group)" class="delete-btn">Delete</button>
-//             </div>
-//         </div>
-//     `
-// };
 const GroupCard = {
     props: ['group', 'isMember', 'onOpen', 'onJoin', 'onLeave', 'isCreator'],
     template: `
@@ -165,33 +145,39 @@ createApp({
             pinnedMessageUrls: new Set(),
             messageCache: new Map(),
             myPinnedMessageUrls: new Set(),
+            localPinnedState: new Map(),
         };
     },
 
     computed: {
         isMessagePinned() {
-            return (messageUrl) => this.pinnedMessageUrls.has(messageUrl);
+            return (url) => this.localPinnedState.get(url) === true;
         }
     },
 
     methods: {
+        scrollToBottom() {
+            const container = this.$refs.messages;
+            if (container) {
+                container.scrollTop = container.scrollHeight;
+            }
+        },
+
         // async pinMessage(message, session) {
         //     const messageUrl = message.url;
         //     const actor = session.actor;
-        
-        //     // Check if this user has already pinned it
-        //     const existingPin = this.pinnedMessages.find(
-        //         pin => pin.value.describes === messageUrl && pin.actor === actor
-        //     );
-        
+
         //     try {
-        //         if (existingPin) {
-        //             // If already pinned, unpin it
-        //             await this.$graffiti.delete(existingPin, session);
-        //             this.pinnedMessages = this.pinnedMessages.filter(p => p !== existingPin);
-        //             this.pinnedMessageUrls.delete(messageUrl);
+        //         const isCurrentlyPinned = this.localPinnedState.get(messageUrl) === true;
+
+        //         if (isCurrentlyPinned) {
+        //             const pinToDelete = this.pinnedMessages.find(
+        //                 pin => pin.value.describes === messageUrl && pin.actor === actor
+        //             );
+        //             if (pinToDelete) {
+        //                 await this.$graffiti.delete(pinToDelete, session);
+        //             }
         //         } else {
-        //             // Otherwise, pin it
         //             const pinActivity = {
         //                 value: {
         //                     activity: 'Pin',
@@ -200,36 +186,37 @@ createApp({
         //                 },
         //                 channels: [this.currentGroup.channel]
         //             };
-        
-        //             const result = await this.$graffiti.put(pinActivity, session);
-        //             this.pinnedMessages.unshift({
-        //                 url: result.url,
-        //                 actor: actor,
-        //                 value: pinActivity.value
-        //             });
-        //             this.pinnedMessageUrls.add(messageUrl);
+        //             await this.$graffiti.put(pinActivity, session);
         //         }
-        
-        //         this.$forceUpdate(); // refresh pinned dropdown and UI
+
+        //         this.localPinnedState.set(messageUrl, !isCurrentlyPinned);
+        //         this.forceRefresh++;
+        //         this.$forceUpdate();
+
+        //         await this.loadPinnedMessages();
+
+
         //     } catch (error) {
-        //         console.error("Failed to pin/unpin message:", error);
-        //         alert("Could not update pin.");
+        //         console.error("Pin operation failed:", error);
         //     }
         // },
         async pinMessage(message, session) {
             const messageUrl = message.url;
             const actor = session.actor;
-        
-            const existingPin = this.pinnedMessages.find(
-                pin => pin.value.describes === messageUrl && pin.actor === actor
-            );
-        
+
+            const container = this.$refs.messages;
+            const scrollTopBefore = container?.scrollTop ?? 0;
+
             try {
-                if (existingPin) {
-                    await this.$graffiti.delete(existingPin, session);
-                    this.pinnedMessages = this.pinnedMessages.filter(p => p !== existingPin);
-                    this.pinnedMessageUrls.delete(messageUrl);
-                    this.myPinnedMessageUrls.delete(messageUrl);
+                const isCurrentlyPinned = this.localPinnedState.get(messageUrl) === true;
+
+                if (isCurrentlyPinned) {
+                    const pinToDelete = this.pinnedMessages.find(
+                        pin => pin.value.describes === messageUrl && pin.actor === actor
+                    );
+                    if (pinToDelete) {
+                        await this.$graffiti.delete(pinToDelete, session);
+                    }
                 } else {
                     const pinActivity = {
                         value: {
@@ -239,30 +226,34 @@ createApp({
                         },
                         channels: [this.currentGroup.channel]
                     };
-        
-                    const result = await this.$graffiti.put(pinActivity, session);
-        
-                    this.pinnedMessages.unshift({
-                        url: result.url,
-                        actor: actor,
-                        value: pinActivity.value
-                    });
-        
-                    this.pinnedMessageUrls.add(messageUrl);
-                    this.myPinnedMessageUrls.add(messageUrl);
+                    await this.$graffiti.put(pinActivity, session);
                 }
-        
-                this.$forceUpdate();
+
+                this.localPinnedState.set(messageUrl, !isCurrentlyPinned);
+
+
+                await this.loadPinnedMessages();
+
+                this.$nextTick(() => {
+                    if (container) {
+                        container.scrollTop = scrollTopBefore;
+                    }
+                });
+
             } catch (error) {
-                console.error("Failed to pin/unpin message:", error);
-                alert("Could not update pin.");
+                console.error("Pin operation failed:", error);
             }
-        },        
-        
+        },
+
         async unpinMessage(pin) {
             try {
                 await this.$graffiti.delete(pin, this.$graffitiSession.value);
-                this.forceRefresh++; // Trigger discovery refresh
+
+                this.localPinnedState.set(pin.value.describes, false);
+
+                this.forceRefresh++;
+                await this.loadPinnedMessages();
+                this.$forceUpdate();
             } catch (error) {
                 console.error("Failed to unpin:", error);
             }
@@ -284,7 +275,6 @@ createApp({
                     this.pinnedMessages.map(pin => pin.value.describes)
                 );
 
-                // Pre-fetch content for all pinned messages
                 this.pinnedMessages.forEach(pin => {
                     if (!this.messageCache.has(pin.value.describes)) {
                         this.fetchMessage(pin.value.describes);
@@ -299,31 +289,25 @@ createApp({
         },
 
         togglePinnedDropdown() {
-            console.log('Toggle clicked - current state:', this.showPinnedDropdown);
-            console.log('Current group exists:', !!this.currentGroup);
             this.showPinnedDropdown = !this.showPinnedDropdown;
-            console.log('New state:', this.showPinnedDropdown);
-            if (this.showPinnedDropdown && this.currentGroup) {
-                console.log('Loading pinned messages...');
+            if (this.showPinnedDropdown) {
                 this.loadPinnedMessages();
             }
         },
+
 
         togglePinnedVisibility() {
             this.showPinned = !this.showPinned;
         },
 
         findMessageContent(messageUrl) {
-            // First check the current messages
             const message = this.messageObjects.find(m => m.url === messageUrl);
             if (message) return message.value.content;
 
-            // Then check the message cache
             if (this.messageCache.has(messageUrl)) {
                 return this.messageCache.get(messageUrl);
             }
 
-            // If not found, fetch it immediately and return a loading message
             this.fetchMessage(messageUrl);
             return "Loading...";
         },
@@ -333,7 +317,6 @@ createApp({
                 const response = await this.$graffiti.get(messageUrl, { schema: this.messageSchema });
                 if (response?.value?.content) {
                     this.messageCache.set(messageUrl, response.value.content);
-                    // Force update to refresh the pinned messages display
                     this.$forceUpdate();
                 } else {
                     this.messageCache.set(messageUrl, "[Message not available]");
@@ -363,6 +346,11 @@ createApp({
                     session,
                 );
                 this.myMessage = "";
+                // this.scrollToBottom(); 
+                this.$nextTick(() => {
+                    setTimeout(this.scrollToBottom, 50);
+                });
+
             } catch (error) {
                 console.error("Failed to send message:", error);
             } finally {
@@ -372,12 +360,72 @@ createApp({
             }
         },
 
+        // async createGroupChat(session) {
+        //     if (!this.newGroupName) return;
+
+        //     this.creatingGroup = true;
+
+        //     try {
+        //         const newChannel = `group:${crypto.randomUUID()}`;
+        //         const newGroup = {
+        //             value: {
+        //                 activity: 'Create',
+        //                 object: {
+        //                     type: 'Group Chat',
+        //                     name: this.newGroupName,
+        //                     channel: newChannel,
+        //                     image: this.newGroupImage || null,
+        //                     description: this.newGroupDescription || ''
+        //                 }
+        //             },
+        //             channels: ["designftw"]
+        //         };
+
+        //         await this.$graffiti.put(newGroup, session);
+
+        //         this.myGroups.push(newChannel);
+
+        //         this.newGroupName = "";
+        //         this.newGroupImage = "";
+        //         this.newGroupDescription = "";
+        //         this.showCreateGroupModal = false;
+
+        //         this.forceRefresh++;
+
+        //     } catch (error) {
+        //         console.error("Failed to create group:", error);
+        //         alert("Failed to create group. Please try again.");
+        //     } finally {
+        //         this.creatingGroup = false;
+        //     }
+        // },
         async createGroupChat(session) {
             if (!this.newGroupName) return;
 
             this.creatingGroup = true;
 
             try {
+                const discovery = await this.$graffiti.discover({
+                    schema: this.groupDiscoverSchema,
+                    channels: ['designftw']
+                });
+
+                const discoveredObjects = discovery.objects || [];
+
+                const existingNames = new Set(
+                    discoveredObjects
+                        .filter(obj => obj.value.activity === 'Create' && obj.value.object?.name)
+                        .map(obj => obj.value.object.name.trim().toLowerCase())
+                );
+
+
+
+                if (existingNames.has(this.newGroupName.trim().toLowerCase())) {
+                    alert("A group with this name already exists. Please choose a different name.");
+                    this.creatingGroup = false;
+                    return;
+                }
+
                 const newChannel = `group:${crypto.randomUUID()}`;
                 const newGroup = {
                     value: {
@@ -396,25 +444,26 @@ createApp({
                 await this.$graffiti.put(newGroup, session);
 
                 this.myGroups.push(newChannel);
-
                 this.newGroupName = "";
                 this.newGroupImage = "";
                 this.newGroupDescription = "";
                 this.showCreateGroupModal = false;
-
                 this.forceRefresh++;
 
             } catch (error) {
                 console.error("Failed to create group:", error);
-                alert("Failed to create group. Please try again.");
+                alert("Group chat name already exists. Please try again with a different name.");
             } finally {
                 this.creatingGroup = false;
             }
         },
 
+
         // async enterGroup(group) {
         //     this.currentGroup = {
-        //         ...group,
+        //         name: group.name || 'Unnamed Group',
+        //         channel: group.channel,
+        //         image: group.image || null,
         //         creator: group.actor
         //     };
         //     this.currentView = 'group';
@@ -444,7 +493,12 @@ createApp({
         //     }
 
         //     this.forceRefresh++;
+
+        //     this.$nextTick(() => {
+        //         setTimeout(this.scrollToBottom, 100);
+        //     });
         // },
+
         async enterGroup(group) {
             this.currentGroup = {
                 name: group.name || 'Unnamed Group',
@@ -479,7 +533,14 @@ createApp({
             }
 
             this.forceRefresh++;
+
+            // await this.loadPinnedMessages();
+
+            this.$nextTick(() => {
+                setTimeout(this.scrollToBottom, 100);
+            });
         },
+
 
         returnHome() {
             this.currentView = 'home';
@@ -534,47 +595,205 @@ createApp({
                 alert("Failed to update message. Please try again.");
             }
         },
+        // handlePinsDiscovered({ objects }) {
+        //     this.pinnedMessages = objects.sort((a, b) => b.value.published - a.value.published);
+
+        //     this.pinnedMessages.forEach(pin => {
+        //         this.localPinnedState.set(pin.value.describes, true);
+        //         if (!this.messageCache.has(pin.value.describes)) {
+        //             this.fetchMessage(pin.value.describes);
+        //         }
+        //     });
+
+        //     const currentPinUrls = new Set(objects.map(p => p.value.describes));
+        //     Array.from(this.localPinnedState.keys()).forEach(url => {
+        //         if (!currentPinUrls.has(url)) {
+        //             this.localPinnedState.delete(url);
+        //         }
+        //     });
+
+        //     this.pinnedMessageUrls = new Set(currentPinUrls);
+        //     this.forceRefresh++;
+        //     this.$forceUpdate();
+        // },
+
+        async handleTogglePin(message) {
+            const messageUrl = message.url;
+            const actor = this.$graffitiSession.value.actor;
+
+            try {
+                const discovery = await this.$graffiti.discover({
+                    schema: this.pinSchema,
+                    channels: [this.currentGroup.channel]
+                });
+
+                const pins = discovery?.objects || [];
+                const matchingPin = pins.find(
+                    pin => {
+                        const match = pin.value.describes === messageUrl && pin.actor === this.$graffitiSession.value.actor;
+                        console.log('Comparing pin.actor:', pin.actor, '===', this.$graffitiSession.value.actor, '=>', match);
+                        return match;
+                    }
+                );
+
+
+
+                if (matchingPin) {
+                    await this.unpinMessage(matchingPin);
+                } else {
+                    const pinActivity = {
+                        value: {
+                            activity: 'Pin',
+                            describes: messageUrl,
+                            published: Date.now()
+                        },
+                        channels: [this.currentGroup.channel]
+                    };
+                    await this.$graffiti.put(pinActivity, this.$graffitiSession.value);
+                    this.localPinnedState.set(messageUrl, true);
+                    await this.loadPinnedMessages();
+                }
+
+                this.forceRefresh++;
+                this.$forceUpdate();
+
+            } catch (err) {
+                console.error("Error in handleTogglePin:", err);
+            }
+        },
+        // async handleTogglePin(message) {
+        //     const messageUrl = message.url;
+        //     const actor = this.$graffitiSession.value.actor;
+
+        //     try {
+        //         const discovery = await this.$graffiti.discover({
+        //             schema: this.pinSchema,
+        //             channels: [this.currentGroup.channel]
+        //         });
+
+        //         const pins = discovery?.objects || [];
+
+        //         const matchingPin = pins.find(
+        //             pin => pin.value.describes === messageUrl && pin.actor === actor
+        //         );
+
+        //         if (matchingPin) {
+        //             await this.unpinMessage(matchingPin);
+        //         } else {
+        //             await this.pinMessage(message, this.$graffitiSession.value);
+        //         }
+
+        //         this.forceRefresh++;        
+        //         await this.loadPinnedMessages();  
+
+        //     } catch (err) {
+        //         console.error("Error in handleTogglePin:", err);
+        //     }
+        // },
 
         handleMessagesDiscovered({ objects }) {
-            console.log("📨 Discovered messages:", objects.map(m => m.url));
-            this.messageObjects = objects.sort((a, b) => b.value.published - a.value.published);
+            this.messageObjects = objects.sort((a, b) => a.value.published - b.value.published);
+            this.pinnedMessageUrls = new Set(objects.map(pin => pin.value.describes));
+
+
             objects.forEach(msg => {
                 this.messageCache.set(msg.url, msg.value.content);
             });
-            this.$forceUpdate();
+
+            this.$nextTick(this.scrollToBottom);
         },
 
 
-        // handlePinsDiscovered({ objects }) {
-        //     console.log("📌 Discovered pins:", objects.map(p => p.value.describes)); // <-- Add this
+        async handleTogglePin(message) {
+            const messageUrl = message.url;
+            const actor = this.$graffitiSession.value.actor;
 
-        //     this.pinnedMessages = objects.sort((a, b) => b.value.published - a.value.published);
-        //     this.pinnedMessageUrls = new Set(objects.map(pin => pin.value.describes));
-        // },
-        handlePinsDiscovered({ objects }) {
-            const me = this.$graffitiSession?.value?.actor;
-        
-            this.pinnedMessages = objects.sort((a, b) => b.value.published - a.value.published);
-        
-            // All pinned messages
-            this.pinnedMessageUrls = new Set(objects.map(pin => pin.value.describes));
-        
-            // Only messages YOU pinned
-            this.myPinnedMessageUrls = new Set(
-                objects.filter(pin => pin.actor === me).map(pin => pin.value.describes)
-            );
-        
-            // Pre-fetch content
-            this.pinnedMessages.forEach(pin => {
-                if (!this.messageCache.has(pin.value.describes)) {
-                    this.fetchMessage(pin.value.describes);
+            try {
+                const discovery = await this.$graffiti.discover({
+                    schema: this.pinSchema,
+                    channels: [this.currentGroup.channel]
+                });
+
+                const pins = discovery?.objects || [];
+
+                const matchingPin = pins.find(
+                    pin => pin.value.describes === messageUrl && pin.actor === actor
+                );
+
+                if (matchingPin) {
+                    await this.$graffiti.delete(matchingPin, this.$graffitiSession.value);
+                    this.localPinnedState.set(messageUrl, false);
+                } else {
+                    if (!this.pinnedMessageUrls.has(messageUrl)) {
+                        const pinActivity = {
+                            value: {
+                                activity: 'Pin',
+                                describes: messageUrl,
+                                published: Date.now()
+                            },
+                            channels: [this.currentGroup.channel]
+                        };
+                        await this.$graffiti.put(pinActivity, this.$graffitiSession.value);
+                        this.localPinnedState.set(messageUrl, true);
+                    }
                 }
-            });
-        
-            this.$forceUpdate();
-        },        
 
+                this.forceRefresh++;
+                await this.loadPinnedMessages();
+                this.$forceUpdate();
 
+            } catch (err) {
+                console.error("Error in handleTogglePin:", err);
+            }
+        },
+
+        // handlePinsDiscovered({ objects }) {
+        //     // Preserve existing pinned state
+        //     const previousPins = new Map(
+        //         this.pinnedMessages.map(pin => [pin.value.describes, pin])
+        //     );
+
+        //     // Update with new discoveries
+        //     this.pinnedMessages = objects.sort((a, b) => b.value.published - a.value.published);
+
+        //     // Sync local state with discovered pins
+        //     this.pinnedMessages.forEach(pin => {
+        //         this.localPinnedState.set(pin.value.describes, true);
+        //         if (!this.messageCache.has(pin.value.describes)) {
+        //             this.fetchMessage(pin.value.describes);
+        //         }
+        //     });
+
+        //     // Remove pins that no longer exist
+        //     const currentPinUrls = new Set(objects.map(p => p.value.describes));
+        //     Array.from(this.localPinnedState.keys()).forEach(url => {
+        //         if (!currentPinUrls.has(url)) {
+        //             this.localPinnedState.delete(url);
+        //         }
+        //     });
+        // },
+        onGroupsDiscovered({ objects }) {
+            if (!this.$graffitiSession.value) return;
+
+            const myActor = this.$graffitiSession.value.actor;
+            const channelStates = new Map();
+
+            objects
+                .filter(obj => obj.actor === myActor)
+                .forEach(obj => {
+                    const channel = obj.value.object.channel;
+                    const activity = obj.value.activity;
+                    if (activity === 'Create' || activity === 'Join') {
+                        channelStates.set(channel, true);
+                    } else if (activity === 'Leave') {
+                        channelStates.set(channel, false);
+                    }
+                });
+
+            this.myGroups = Array.from(channelStates.entries())
+                .filter(([_, joined]) => joined)
+                .map(([channel]) => channel);
+        },
         openRenameModal() {
             this.renameGroupName = this.currentGroup.name;
             this.showRenameModal = true;
@@ -648,58 +867,26 @@ createApp({
             }
         },
 
-        onGroupsDiscovered(objects) {
-            console.log("Discovered groups:", objects);
-            this.groupObjects = objects;
-        },
 
-        // filteredMyGroups(objects) {
-        //     if (!this.$graffitiSession.value || !objects) return [];
-
-        //     const myActor = this.$graffitiSession.value.actor;
-        //     const channelStates = new Map();
-
-        //     objects
-        //         .filter(obj => obj.actor === myActor)
-        //         .forEach(obj => {
-        //             const channel = obj.value.object.channel;
-        //             const activity = obj.value.activity;
-
-        //             if (activity === 'Create' || activity === 'Join') {
-        //                 channelStates.set(channel, true);
-        //             } else if (activity === 'Leave') {
-        //                 channelStates.set(channel, false);
-        //             }
-        //         });
-
-        //     return objects.filter(obj => {
-        //         const channel = obj.value.object.channel;
-        //         return channelStates.get(channel) === true &&
-        //             obj.actor === myActor &&
-        //             ['Create', 'Join'].includes(obj.value.activity);
-        //     });
-        // },
         filteredMyGroups(objects) {
             if (!this.$graffitiSession.value || !objects) return [];
-        
+
             const myActor = this.$graffitiSession.value.actor;
             const channelStates = new Map();
-        
-            // Track latest join/leave state
+
             objects
                 .filter(obj => obj.actor === myActor)
                 .forEach(obj => {
                     const channel = obj.value.object.channel;
                     const activity = obj.value.activity;
-        
+
                     if (activity === 'Create' || activity === 'Join') {
                         channelStates.set(channel, true);
                     } else if (activity === 'Leave') {
                         channelStates.set(channel, false);
                     }
                 });
-        
-            // Deduplicate by channel using a Map
+
             const uniqueGroups = new Map();
             objects.forEach(obj => {
                 const channel = obj.value.object.channel;
@@ -713,9 +900,20 @@ createApp({
                     }
                 }
             });
-        
+
             return Array.from(uniqueGroups.values());
-        },        
+        },
+
+        uniqueAvailableGroups(objects) {
+            const uniqueMap = new Map();
+            for (const obj of objects) {
+                const channel = obj.value.object.channel;
+                if (!this.myGroups.includes(channel) && !uniqueMap.has(channel)) {
+                    uniqueMap.set(channel, obj);
+                }
+            }
+            return Array.from(uniqueMap.values());
+        },
 
         async leaveGroup(groupObj) {
             if (!confirm(`Are you sure you want to leave "${groupObj.value.object.name}"?`)) return;
@@ -846,6 +1044,14 @@ createApp({
     },
 
     watch: {
+        // messageObjects() {
+        //     this.$nextTick(this.scrollToBottom);
+        //   },
+        messageObjects(newVal, oldVal) {
+            if (!oldVal || newVal.length > oldVal.length) {
+                this.$nextTick(this.scrollToBottom);
+            }
+        },
         currentGroup: {
             async handler(newGroup) {
                 if (newGroup) {
@@ -862,9 +1068,12 @@ createApp({
                 }
             },
             deep: true
-        }
+        },
     },
     mounted() {
+        this.$nextTick(() => {
+            this.scrollToBottom();
+        });
         // this.$watch(
         //     () => this.$graffitiSession.value,
         //     async (session) => {
@@ -891,13 +1100,13 @@ createApp({
         //     },
         //     { immediate: true }
         // );
-        console.log('Graffiti instance:', this.$graffiti); // Verify Graffiti is available
-        console.log('Graffiti session:', this.$graffitiSession.value); // Verify session
+        console.log('Graffiti instance:', this.$graffiti);
+        console.log('Graffiti session:', this.$graffitiSession.value);
 
         this.$watch(
             () => this.$graffitiSession.value,
             async (session) => {
-                console.log('Session changed:', session); // Debug log
+                console.log('Session changed:', session);
                 if (session) {
                     await this.loadPinnedMessages(session);
                 }
@@ -911,7 +1120,7 @@ createApp({
     .directive('focus', focusDirective)
     .component('group-card', GroupCard)
     .use(GraffitiPlugin, {
-        // graffiti: new GraffitiLocal(),
-        graffiti: new GraffitiRemote(),
+        graffiti: new GraffitiLocal(),
+        // graffiti: new GraffitiRemote(),
     })
     .mount("#app");
