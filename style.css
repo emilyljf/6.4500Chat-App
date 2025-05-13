@@ -207,6 +207,8 @@ textarea:focus {
 }
  */
 .group-sections {
+    margin-top: 0 !important;
+    padding-top: 0 !important;
     display: flex;
     gap: 30px;
     flex: 1;
@@ -214,6 +216,17 @@ textarea:focus {
     overflow: hidden;
     overflow-x: hidden;
 }
+
+.group-section:first-child {
+    margin-top: 0 !important;
+    padding-top: 0 !important;
+}
+
+.group-section:nth-child(2) {
+    margin-top: 0 !important;
+    padding-top: 0 !important;
+}
+
 
 .group-section {
     flex: 1;
@@ -1003,7 +1016,7 @@ body {
     height: 100%;
     margin: 0 auto;
     padding: 0;
-    /* overflow: hidden; */
+    overflow: hidden;
 }
 
 #app {
@@ -1036,10 +1049,10 @@ body {
 }
 
 
-.delete-btn {
+/* .delete-btn {
     background: #ff4d4f;
     color: white;
     border: none;
     border-radius: 8px;
     padding: 8px 14px;
-}
+} */

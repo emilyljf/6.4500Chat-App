@@ -399,33 +399,132 @@ createApp({
         //         this.creatingGroup = false;
         //     }
         // },
+        // async createGroupChat(session) {
+        //     if (!this.newGroupName) return;
+        
+        //     this.creatingGroup = true;
+        
+        //     try {
+        //         const discovery = await this.$graffiti.discover({
+        //             schema: this.groupDiscoverSchema,
+        //             channels: ['designftw']
+        //         });
+        
+        //         const discoveredObjects = discovery.objects || [];
+        
+        //         // De-duplicate by channel
+        //         const uniqueGroupsByChannel = new Map();
+        //         for (const obj of discoveredObjects) {
+        //             const channel = obj.value.object?.channel;
+        //             if (channel && !uniqueGroupsByChannel.has(channel)) {
+        //                 uniqueGroupsByChannel.set(channel, obj);
+        //             }
+        //         }
+        
+        //         // Check for duplicate name (case-insensitive)
+        //         const lowerNewName = this.newGroupName.trim().toLowerCase();
+        //         for (const obj of uniqueGroupsByChannel.values()) {
+        //             const existingName = obj.value.object?.name?.trim().toLowerCase();
+        //             if (existingName === lowerNewName) {
+        //                 alert("A group with this name already exists. Please choose a different name.");
+        //                 this.creatingGroup = false;
+        //                 return;
+        //             }
+        //         }
+        
+        //         const newChannel = `group:${crypto.randomUUID()}`;
+        //         const newGroup = {
+        //             value: {
+        //                 activity: 'Create',
+        //                 object: {
+        //                     type: 'Group Chat',
+        //                     name: this.newGroupName,
+        //                     channel: newChannel,
+        //                     image: this.newGroupImage || null,
+        //                     description: this.newGroupDescription || ''
+        //                 }
+        //             },
+        //             channels: ["designftw"]
+        //         };
+        
+        //         await this.$graffiti.put(newGroup, session);
+        
+        //         // Log Join activity
+        //         await this.$graffiti.put({
+        //             value: {
+        //                 activity: 'Join',
+        //                 object: {
+        //                     type: 'Group Chat',
+        //                     name: this.newGroupName,
+        //                     channel: newChannel,
+        //                     image: this.newGroupImage || null
+        //                 }
+        //             },
+        //             channels: ['designftw']
+        //         }, session);
+        
+        //         this.myGroups.push(newChannel);
+        //         this.newGroupName = "";
+        //         this.newGroupImage = "";
+        //         this.newGroupDescription = "";
+        //         this.showCreateGroupModal = false;
+        //         this.forceRefresh++;
+        
+        //     } catch (error) {
+        //         console.error("Failed to create group:", error);
+        //         alert("Failed to create group. Please try again.");
+        //     } finally {
+        //         this.creatingGroup = false;
+        //     }
+        // },        
         async createGroupChat(session) {
             if (!this.newGroupName) return;
-
+        
             this.creatingGroup = true;
-
+        
             try {
                 const discovery = await this.$graffiti.discover({
                     schema: this.groupDiscoverSchema,
                     channels: ['designftw']
                 });
-
+        
                 const discoveredObjects = discovery.objects || [];
-
-                const existingNames = new Set(
-                    discoveredObjects
-                        .filter(obj => obj.value.activity === 'Create' && obj.value.object?.name)
-                        .map(obj => obj.value.object.name.trim().toLowerCase())
-                );
-
-
-
-                if (existingNames.has(this.newGroupName.trim().toLowerCase())) {
-                    alert("A group with this name already exists. Please choose a different name.");
-                    this.creatingGroup = false;
-                    return;
+        
+                console.log("Discovered group objects:");
+                discoveredObjects.forEach(obj => {
+                    const activity = obj.value?.activity;
+                    const name = obj.value?.object?.name;
+                    const channel = obj.value?.object?.channel;
+                    console.log(`Activity: ${activity}, Name: ${name}, Channel: ${channel}, URL: ${obj.url}`);
+                });
+        
+                // Track latest 'Create' per channel (deduplicated by channel using highest URL)
+                const latestCreates = new Map();
+        
+                for (const obj of discoveredObjects) {
+                    const activity = obj.value?.activity;
+                    const channel = obj.value?.object?.channel;
+        
+                    if (activity === 'Create' && channel) {
+                        const existing = latestCreates.get(channel);
+                        if (!existing || obj.url > existing.url) {
+                            latestCreates.set(channel, obj);
+                        }
+                    }
                 }
-
+        
+                const lowerNewName = this.newGroupName.trim().toLowerCase();
+        
+                for (const obj of latestCreates.values()) {
+                    const existingName = obj.value?.object?.name?.trim().toLowerCase();
+                    console.log("Checking against group name:", existingName);
+                    if (existingName === lowerNewName) {
+                        alert("A group with this name already exists. Please choose a different name.");
+                        this.creatingGroup = false;
+                        return;
+                    }
+                }
+        
                 const newChannel = `group:${crypto.randomUUID()}`;
                 const newGroup = {
                     value: {
@@ -438,26 +537,38 @@ createApp({
                             description: this.newGroupDescription || ''
                         }
                     },
-                    channels: ["designftw"]
+                    channels: ['designftw']
                 };
-
+        
                 await this.$graffiti.put(newGroup, session);
-
+        
+                await this.$graffiti.put({
+                    value: {
+                        activity: 'Join',
+                        object: {
+                            type: 'Group Chat',
+                            name: this.newGroupName,
+                            channel: newChannel,
+                            image: this.newGroupImage || null
+                        }
+                    },
+                    channels: ['designftw']
+                }, session);
+        
                 this.myGroups.push(newChannel);
                 this.newGroupName = "";
                 this.newGroupImage = "";
                 this.newGroupDescription = "";
                 this.showCreateGroupModal = false;
                 this.forceRefresh++;
-
+        
             } catch (error) {
                 console.error("Failed to create group:", error);
-                alert("Group chat name already exists. Please try again with a different name.");
+                alert("Failed to create group. Please try again.");
             } finally {
                 this.creatingGroup = false;
             }
-        },
-
+        },        
 
         // async enterGroup(group) {
         //     this.currentGroup = {
@@ -622,10 +733,11 @@ createApp({
             const actor = this.$graffitiSession.value.actor;
 
             try {
-                const discovery = await this.$graffiti.discover({
-                    schema: this.pinSchema,
-                    channels: [this.currentGroup.channel]
-                });
+                const createObjects = discoveredObjects.filter(obj =>
+                    obj.value?.activity === 'Create' &&
+                    obj.value?.object?.type === 'Group Chat' &&
+                    typeof obj.value?.object?.name === 'string'
+                );
 
                 const pins = discovery?.objects || [];
                 const matchingPin = pins.find(
@@ -905,15 +1017,42 @@ createApp({
         },
 
         uniqueAvailableGroups(objects) {
+            if (!this.$graffitiSession.value || !objects) return [];
+        
+            const myActor = this.$graffitiSession.value.actor;
+            const channelStates = new Map();
+        
+            // Track membership state based on actor's activity
+            objects
+                .filter(obj => obj.actor === myActor)
+                .forEach(obj => {
+                    const channel = obj.value.object.channel;
+                    const activity = obj.value.activity;
+        
+                    if (activity === 'Create' || activity === 'Join') {
+                        channelStates.set(channel, true);
+                    } else if (activity === 'Leave') {
+                        channelStates.set(channel, false);
+                    }
+                });
+        
+            const myJoinedChannels = new Set(
+                Array.from(channelStates.entries())
+                    .filter(([_, joined]) => joined)
+                    .map(([channel]) => channel)
+            );
+        
+            // Now filter out any group already joined
             const uniqueMap = new Map();
             for (const obj of objects) {
                 const channel = obj.value.object.channel;
-                if (!this.myGroups.includes(channel) && !uniqueMap.has(channel)) {
+                if (!myJoinedChannels.has(channel) && !uniqueMap.has(channel)) {
                     uniqueMap.set(channel, obj);
                 }
             }
+        
             return Array.from(uniqueMap.values());
-        },
+        },        
 
         async leaveGroup(groupObj) {
             if (!confirm(`Are you sure you want to leave "${groupObj.value.object.name}"?`)) return;
@@ -1070,51 +1209,98 @@ createApp({
             deep: true
         },
     },
+    // mounted() {
+    //     this.$nextTick(() => {
+    //         this.scrollToBottom();
+    //     });
+    //     // this.$watch(
+    //     //     () => this.$graffitiSession.value,
+    //     //     async (session) => {
+    //     //         if (!session) {
+    //     //             this.myGroups = [];
+    //     //             return;
+    //     //         }
+
+    //     //         try {
+    //     //             const discovery = await this.$graffiti.discover({
+    //     //                 schema: this.groupDiscoverSchema,
+    //     //                 channels: ['designftw']
+    //     //             });
+
+    //     //             const results = discovery.objects || [];
+    //     //             this.myGroups = results
+    //     //                 .filter(obj => obj.actor === session.actor)
+    //     //                 .map(obj => obj.value.object.channel);
+    //     //         } catch (e) {
+    //     //             console.error("Failed to auto-discover groups:", e);
+    //     //         }
+
+    //     //         await this.loadProfile(session.actor);
+    //     //     },
+    //     //     { immediate: true }
+    //     // );
+    //     console.log('Graffiti instance:', this.$graffiti);
+    //     console.log('Graffiti session:', this.$graffitiSession.value);
+
+    //     this.$watch(
+    //         () => this.$graffitiSession.value,
+    //         async (session) => {
+    //             console.log('Session changed:', session);
+    //             if (session) {
+    //                 await this.loadPinnedMessages(session);
+    //             }
+    //         },
+    //         { immediate: true }
+    //     );
+
+    // }
     mounted() {
         this.$nextTick(() => {
             this.scrollToBottom();
         });
-        // this.$watch(
-        //     () => this.$graffitiSession.value,
-        //     async (session) => {
-        //         if (!session) {
-        //             this.myGroups = [];
-        //             return;
-        //         }
-
-        //         try {
-        //             const discovery = await this.$graffiti.discover({
-        //                 schema: this.groupDiscoverSchema,
-        //                 channels: ['designftw']
-        //             });
-
-        //             const results = discovery.objects || [];
-        //             this.myGroups = results
-        //                 .filter(obj => obj.actor === session.actor)
-        //                 .map(obj => obj.value.object.channel);
-        //         } catch (e) {
-        //             console.error("Failed to auto-discover groups:", e);
-        //         }
-
-        //         await this.loadProfile(session.actor);
-        //     },
-        //     { immediate: true }
-        // );
-        console.log('Graffiti instance:', this.$graffiti);
-        console.log('Graffiti session:', this.$graffitiSession.value);
 
         this.$watch(
             () => this.$graffitiSession.value,
             async (session) => {
-                console.log('Session changed:', session);
-                if (session) {
-                    await this.loadPinnedMessages(session);
+                if (!session) {
+                    this.myGroups = [];
+                    return;
                 }
+
+                try {
+                    const discovery = await this.$graffiti.discover({
+                        schema: this.groupDiscoverSchema,
+                        channels: ['designftw']
+                    });
+
+                    const results = discovery.objects || [];
+                    const channelStates = new Map();
+
+                    results
+                        .filter(obj => obj.actor === session.actor)
+                        .forEach(obj => {
+                            const channel = obj.value.object.channel;
+                            const activity = obj.value.activity;
+                            if (activity === 'Create' || activity === 'Join') {
+                                channelStates.set(channel, true);
+                            } else if (activity === 'Leave') {
+                                channelStates.set(channel, false);
+                            }
+                        });
+
+                    this.myGroups = Array.from(channelStates.entries())
+                        .filter(([_, joined]) => joined)
+                        .map(([channel]) => channel);
+                } catch (e) {
+                    console.error("Failed to auto-discover groups:", e);
+                }
+
+                await this.loadProfile(session.actor);
             },
             { immediate: true }
         );
-
     }
+
 })
 
     .directive('focus', focusDirective)

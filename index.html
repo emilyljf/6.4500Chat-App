@@ -115,8 +115,12 @@
                     <div class="group-sections">
                         <div class="group-section">
                             <h3>My Group Chats</h3>
-                            <graffiti-discover v-slot="{ objects }" :channels="['designftw']" :schema="groupDiscoverSchema"
-                                :key="'mygroups-' + forceRefresh">
+                            <!-- <graffiti-discover v-slot="{ objects }" :channels="['designftw']" :schema="groupDiscoverSchema"
+                                :key="'mygroups-' + forceRefresh"> -->
+                            <graffiti-discover v-slot="{ objects }" :channels="['designftw']"
+                                :schema="groupDiscoverSchema" :key="'mygroups-' + forceRefresh"
+                                @update="onGroupsDiscovered">
+
                                 <div v-if="filteredMyGroups(objects).length === 0" class="no-groups">
                                     No groups yet. Join or create one!
                                 </div>
@@ -127,34 +131,35 @@
                                 </div>
                             </graffiti-discover>
                         </div>
-    
 
-                    <div class="group-section">
-                        <h3>Available Groups</h3>
-                        <graffiti-discover v-slot="{ objects: groupObjects }" :channels="['designftw']"
-                            :schema="groupDiscoverSchema" @update="onGroupsDiscovered" :key="'groups-' + forceRefresh">
 
-                            <div v-if="Array.isArray(groupObjects) && groupObjects.filter(g => !myGroups.includes(g.value.object.channel)).length === 0"
-                                class="no-groups">
-                                No groups found. Create one to get started!
-                            </div>
-                            <div class="groups-grid">
-                                <!-- <group-card
+                        <div class="group-section">
+                            <h3>Available Groups</h3>
+                            <graffiti-discover v-slot="{ objects: groupObjects }" :channels="['designftw']"
+                                :schema="groupDiscoverSchema" @update="onGroupsDiscovered"
+                                :key="'groups-' + forceRefresh">
+
+                                <div v-if="Array.isArray(groupObjects) && groupObjects.filter(g => !myGroups.includes(g.value.object.channel)).length === 0"
+                                    class="no-groups">
+                                    No groups found. Create one to get started!
+                                </div>
+                                <div class="groups-grid">
+                                    <!-- <group-card
                                     v-for="obj in groupObjects.filter(g => !myGroups.includes(g.value.object.channel))"
                                     :key="obj.url" :group="obj" :is-member="false"
                                     :is-creator="obj.actor === $graffitiSession.value.actor" :on-open="enterGroup"
                                     :on-join="enterGroup" /> -->
-                                <group-card v-for="obj in uniqueAvailableGroups(groupObjects)"
-                                    :key="obj.value.object.channel" :group="obj" :is-member="false"
-                                    :is-creator="obj.actor === $graffitiSession.value.actor" :on-open="enterGroup"
-                                    :on-join="enterGroup" />
+                                    <group-card v-for="obj in uniqueAvailableGroups(groupObjects)"
+                                        :key="obj.value.object.channel" :group="obj" :is-member="false"
+                                        :is-creator="obj.actor === $graffitiSession.value.actor" :on-open="enterGroup"
+                                        :on-join="enterGroup" />
 
 
 
-                            </div>
-                        </graffiti-discover>
+                                </div>
+                            </graffiti-discover>
+                        </div>
                     </div>
-                </div>
             </template>
 
             <template v-else-if="currentView === 'group' && currentGroup">
