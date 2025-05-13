@@ -45,15 +45,24 @@
                 </button>
 
                 <div class="profile-controls">
-                    <div class="profile-avatar"
+                    <!-- <div class="profile-avatar"
                         @click="showProfileModal = true; loadProfile($graffitiSession.value.actor)">
                         <img v-if="profileImage" :src="profileImage" alt="Profile">
                         <span v-else>{{ getUserInitials($graffitiSession.value.actor) }}</span>
+                    </div> -->
+                    <div class="profile-avatar" @click="viewProfile($graffitiSession.value.actor)">
+                        <img v-if="profileImage" :src="profileImage" alt="Profile">
+                        <span v-else>{{ getUserInitials($graffitiSession.value.actor) }}</span>
                     </div>
+                    <!-- <button class="profile-edit-btn"
+                        @click="showProfileModal = true; loadProfile($graffitiSession.value.actor)">
+                        Edit Profile
+                    </button> -->
                     <button class="profile-edit-btn"
                         @click="showProfileModal = true; loadProfile($graffitiSession.value.actor)">
                         Edit Profile
                     </button>
+
                 </div>
 
                 <button v-if="currentView === 'group'" @click="returnHome()" class="back-button">
@@ -65,7 +74,7 @@
                 <div class="modal-content">
                     <h3>Edit Profile</h3>
                     <div class="form-group">
-                        <label>Display Name</label>
+                        <label>Name</label>
                         <input type="text" v-model="editName" />
                     </div>
                     <div class="form-group">
@@ -78,7 +87,9 @@
                     </div>
                     <div class="modal-actions">
                         <button class="cancel-btn" @click="showProfileModal = false">Cancel</button>
-                        <button class="create-btn" @click="saveProfile($graffitiSession.value)">Save</button>
+                        <!-- <button class="create-btn" @click="saveProfile($graffitiSession.value)">Save</button> -->
+                        <button @click="saveProfile" class="save-btn">Save</button>
+
                     </div>
                 </div>
             </div>
@@ -341,11 +352,17 @@
                                     </span>
                                 </div> -->
                                 <div v-if="editingMessage !== message.url">
-                                    <strong class="message-sender" :data-pronouns="getUserPronouns(message.actor)">
+                                    <!-- <strong class="message-sender" :data-pronouns="getUserPronouns(message.actor)">
                                         {{ getUserName(message.actor) }}
                                         <span v-if="message.actor === $graffitiSession.value.actor"
                                             class="you-indicator">(you)</span>
-                                    </strong>:
+                                    </strong>: -->
+                                    <strong class="message-sender" :data-pronouns="getUserPronouns(message.actor)"
+                                        @click="viewProfile(message.actor)">
+                                        {{ getUserName(message.actor) }}
+                                        <span v-if="message.actor === $graffitiSession.value.actor"
+                                            class="you-indicator">(you)</span>
+                                    </strong>
                                     <span class="message-content">{{ message.value.content }}</span>
                                     <span class="message-time">
                                         {{ new Date(message.value.published).toLocaleTimeString() }}
@@ -415,6 +432,25 @@
                         </div>
                     </div>
                 </div>
+
+                <div v-if="viewingProfileModal" class="modal-overlay">
+                    <div class="modal-content">
+                        <h3>User Profile</h3>
+                        <div class="profile-info">
+                            <div class="profile-field">
+                                <strong>Name:</strong> {{ viewingProfile.name || 'N/A' }}
+                            </div>
+                            <!-- <div class="profile-field">
+                                <strong>Pronouns:</strong> {{ viewingProfile.pronouns || 'N/A' }}
+                            </div>
+                            <div class="profile-field">
+                                <strong>Bio:</strong> {{ viewingProfile.bio || 'N/A' }}
+                            </div> -->
+                        </div>
+                        <button class="cancel-btn" @click="viewingProfileModal = false">Close</button>
+                    </div>
+                </div>
+
             </template>
         </template>
     </div>

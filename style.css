@@ -577,6 +577,34 @@ textarea:focus {
     cursor: pointer;
 }
 
+.message-sender {
+    cursor: pointer;
+    color: #2b7a78;
+    text-decoration: underline;
+    text-decoration-color: rgba(43, 122, 120, 0.3);
+    transition: all 0.2s ease;
+  }
+  
+  .message-sender:hover {
+    color: #3aafa9;
+    text-decoration-color: rgba(58, 175, 169, 0.5);
+  }
+  
+  .profile-info {
+    margin: 20px 0;
+  }
+  
+  .profile-field {
+    margin-bottom: 15px;
+    line-height: 1.5;
+  }
+  
+  .profile-field strong {
+    color: #2b7a78;
+    display: inline-block;
+    min-width: 80px;
+  }
+
 .cancel-edit-btn {
     background: #ef5350;
     color: white;

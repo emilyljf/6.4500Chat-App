@@ -171,6 +171,27 @@ createApp({
             localPinnedState: new Map(),
             lastViewedTimes: {},
             unreadCounts: {},
+            viewingProfile: null,
+            viewingProfileModal: false,
+            profileSchema: {
+                type: 'object',
+                properties: {
+                    value: {
+                        type: 'object',
+                        required: ['describes', 'published'],
+                        properties: {
+                            describes: { type: 'string' },
+                            published: { type: 'number' },
+                            name: { type: 'string' },
+                            pronouns: { type: 'string' },
+                            bio: { type: 'string' }
+                        }
+                    }
+                }
+            }
+
+
+
         };
     },
 
@@ -211,12 +232,10 @@ createApp({
 
             const counts = {};
 
-            // Initialize counts for all known groups
             Object.keys(this.lastViewedTimes).forEach(channel => {
                 counts[channel] = 0;
             });
 
-            // Count unread messages
             objects.forEach(obj => {
                 if (obj.value?.published && obj.value?.content) {
                     const channel = obj.channels?.[0];
@@ -229,6 +248,37 @@ createApp({
             });
 
             this.unreadCounts = counts;
+        },
+        async viewProfile(actorUri) {
+            this.viewingProfileModal = true;
+            this.viewingProfile = {
+                actor: actorUri,
+                name: this.extractUsername(actorUri),
+                pronouns: '',
+                bio: ''
+            };
+
+            try {
+                const discovery = await this.$graffiti.discover({
+                    schema: this.profileSchema,
+                    channels: [actorUri]
+                });
+
+                const results = discovery.objects || [];
+                const latest = results
+                    .filter(obj => obj.value?.describes === actorUri)
+                    .sort((a, b) => b.value.published - a.value.published)[0];
+
+                if (latest?.value) {
+                    this.viewingProfile = {
+                        ...this.viewingProfile,
+                        ...latest.value,
+                        actor: actorUri
+                    };
+                }
+            } catch (e) {
+                console.error("Failed to load profile:", e);
+            }
         },
 
         scrollToBottom() {
@@ -1158,46 +1208,78 @@ createApp({
                 alert("Failed to leave group. Please try again.");
             }
         },
-        async loadProfile(actorUri) {
-            try {
-                console.log("Loading profile for:", actorUri);
+        // async loadProfile(actorUri) {
+        //     try {
+        //         console.log("Loading profile for:", actorUri);
 
+        //         const discovery = await this.$graffiti.discover({
+        //             schema: {
+        //                 properties: {
+        //                     value: {
+        //                         required: ['describes', 'published'],
+        //                         properties: {
+        //                             describes: { type: 'string' },
+        //                             published: { type: 'number' },
+        //                             name: { type: 'string' },
+        //                             pronouns: { type: 'string' },
+        //                             bio: { type: 'string' }
+        //                         }
+        //                     }
+        //                 }
+        //             },
+        //             channels: [actorUri]
+        //         });
+
+        //         console.log("Discovery response:", discovery);
+
+        //         const results = discovery.objects || [];
+        //         console.log("Profile objects found:", results);
+
+        //         const latest = results
+        //             .filter(obj => obj.value.describes === actorUri)
+        //             .sort((a, b) => b.value.published - a.value.published)[0];
+
+        //         this.profile = latest?.value || null;
+        //         if (this.profile) {
+        //             this.editName = this.profile.name || "";
+        //             this.editPronouns = this.profile.pronouns || "";
+        //             this.editBio = this.profile.bio || "";
+        //         }
+
+        //     } catch (e) {
+        //         console.error("Failed to load profile:", e);
+        //     }
+        // },
+        async loadProfile(actorUri) {
+            this.editName = "";
+            this.editPronouns = "";
+            this.editBio = "";
+
+            try {
                 const discovery = await this.$graffiti.discover({
-                    schema: {
-                        properties: {
-                            value: {
-                                required: ['describes', 'published'],
-                                properties: {
-                                    describes: { type: 'string' },
-                                    published: { type: 'number' },
-                                    name: { type: 'string' },
-                                    pronouns: { type: 'string' },
-                                    bio: { type: 'string' }
-                                }
-                            }
-                        }
-                    },
+                    schema: this.profileSchema,
                     channels: [actorUri]
                 });
 
-                console.log("Discovery response:", discovery);
-
                 const results = discovery.objects || [];
-                console.log("Profile objects found:", results);
-
                 const latest = results
-                    .filter(obj => obj.value.describes === actorUri)
+                    .filter(obj => obj.value?.describes === actorUri)
                     .sort((a, b) => b.value.published - a.value.published)[0];
 
-                this.profile = latest?.value || null;
-                if (this.profile) {
-                    this.editName = this.profile.name || "";
-                    this.editPronouns = this.profile.pronouns || "";
-                    this.editBio = this.profile.bio || "";
+                if (latest?.value) {
+                    const profile = latest.value;
+                    this.profile = profile;
+                    this.editName = profile.name || "";
+                    this.editPronouns = profile.pronouns || "";
+                    this.editBio = profile.bio || "";
+                } else {
+                    this.editName = this.extractUsername(actorUri);
+                    this.profile = null;
                 }
-
             } catch (e) {
                 console.error("Failed to load profile:", e);
+                this.editName = this.extractUsername(actorUri);
+                this.profile = null;
             }
         },
         scrollToMessage(messageUrl) {
@@ -1218,41 +1300,59 @@ createApp({
                 setTimeout(() => element.classList.remove('highlight-message'), 2000);
             }
         },
+        async saveProfile() {
+            const actorUri = this.$graffitiSession.value.actor;
 
-        async saveProfile(session) {
-            try {
-                const newProfile = {
-                    describes: session.actor,
-                    name: this.editName,
-                    pronouns: this.editPronouns,
-                    bio: this.editBio,
+            const newProfile = {
+                value: {
+                    describes: actorUri,
+                    name: this.editName || '',
+                    pronouns: this.editPronouns || '',
+                    bio: this.editBio || '',
                     published: Date.now()
-                };
+                },
+                channels: [actorUri]
+            };
 
-                await this.$graffiti.put({
-                    value: newProfile,
-                    channels: [session.actor]
-                }, session);
+            try {
+                await this.$graffiti.put(newProfile, this.$graffitiSession.value);
 
-                this.profile = newProfile;
+                this.profile = newProfile.value;
+                if (this.viewingProfile && this.viewingProfile.actor === actorUri) {
+                    this.viewingProfile = { ...newProfile.value, actor: actorUri };
+                }
+
                 this.showProfileModal = false;
-
                 this.forceRefresh++;
             } catch (e) {
                 console.error("Failed to save profile:", e);
-                alert("Error saving profile.");
+                alert("Failed to save profile. Please try again.");
+            }
+        },
+        extractUsername(actorUri) {
+            try {
+                return actorUri.split("/").pop().split("@")[0] || "Me";
+            } catch {
+                return "Me";
             }
         },
 
         getUserName(actorUri) {
             if (actorUri === this.$graffitiSession.value?.actor) {
-                return this.profile?.name || actorUri.split('/').pop() || 'Anonymous';
+                return this.profile?.name || this.extractUsername(actorUri);
             }
-            return actorUri.split('/').pop() || 'Anonymous';
+
+            const profile = this.viewingProfile?.actor === actorUri ? this.viewingProfile : null;
+            return profile?.name || this.extractUsername(actorUri);
         },
 
         getUserPronouns(actorUri) {
-            return this.profile?.pronouns || '';
+            if (actorUri === this.$graffitiSession.value?.actor) {
+                return this.profile?.pronouns || '';
+            }
+
+            const profile = this.viewingProfile?.actor === actorUri ? this.viewingProfile : null;
+            return profile?.pronouns || '';
         }
 
 
@@ -1372,7 +1472,9 @@ createApp({
                     console.error("Failed to auto-discover groups:", e);
                 }
 
-                await this.loadProfile(session.actor);
+                // await this.loadProfile(session.actor);
+                await this.loadProfile(this.$graffitiSession.value.actor);
+
             },
             { immediate: true }
         );
