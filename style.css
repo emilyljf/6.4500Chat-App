@@ -555,6 +555,36 @@ textarea:focus {
     cursor: pointer;
     transition: all 0.2s ease;
   }
+  .edit-message-form {
+    display: flex;
+    gap: 8px;
+    margin-top: 5px;
+}
+
+.edit-message-input {
+    flex: 1;
+    padding: 8px 12px;
+    border: 2px solid #b7ecec;
+    border-radius: 8px;
+}
+
+.save-edit-btn {
+    background: #81c784;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    padding: 8px 12px;
+    cursor: pointer;
+}
+
+.cancel-edit-btn {
+    background: #ef5350;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    padding: 8px 12px;
+    cursor: pointer;
+}
   
   .profile-avatar:hover {
     background: #2b7a78;

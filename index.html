@@ -318,6 +318,28 @@
                             <li v-for="message in messageObjects" :key="message.url" class="message-item"
                                 :class="{ 'pinned-message': isMessagePinned(message.url) }"
                                 :data-message-url="message.url">
+                                <!-- <div v-if="editingMessage !== message.url">
+                                    <strong class="message-sender" :data-pronouns="getUserPronouns(message.actor)">
+                                        {{ getUserName(message.actor) }}
+                                        <span v-if="message.actor === $graffitiSession.value.actor"
+                                            class="you-indicator">(you)</span>
+                                    </strong>:
+                                    <span class="message-content">{{ message.value.content }}</span>
+                                    <span class="message-time">
+                                        {{ new Date(message.value.published).toLocaleTimeString() }}
+                                        <template v-if="message.actor === $graffitiSession.value.actor">
+                                            <button @click="startEditing(message.url, message.value.content)"
+                                                class="message-action-btn">✏️</button>
+                                            <button @click="deleteMessage(message, $graffitiSession.value)"
+                                                class="message-action-btn">🗑️</button>
+                                        </template>
+                                        <button v-if="!isMessagePinned(message.url)"
+                                            @click.stop="pinMessage(message, $graffitiSession.value)"
+                                            class="message-action-btn">
+                                            <span>📌</span>
+                                        </button>
+                                    </span>
+                                </div> -->
                                 <div v-if="editingMessage !== message.url">
                                     <strong class="message-sender" :data-pronouns="getUserPronouns(message.actor)">
                                         {{ getUserName(message.actor) }}
@@ -333,20 +355,19 @@
                                             <button @click="deleteMessage(message, $graffitiSession.value)"
                                                 class="message-action-btn">🗑️</button>
                                         </template>
-                                        <!-- <button @click.stop="pinMessage(message, $graffitiSession.value)"
-                                            class="message-action-btn"
-                                            :class="{ 'active-pin': isMessagePinned(message.url) }">
-                                            <span>{{ isMessagePinned(message.url) ? '📍' : '📌' }}</span>
-                                        </button> -->
                                         <button v-if="!isMessagePinned(message.url)"
                                             @click.stop="pinMessage(message, $graffitiSession.value)"
                                             class="message-action-btn">
                                             <span>📌</span>
                                         </button>
-
-
-
                                     </span>
+                                </div>
+                                <div v-else class="edit-message-form">
+                                    <input type="text" v-model="editMessageContent" ref="editInput"
+                                        class="edit-message-input">
+                                    <button @click="finishEditing(message, $graffitiSession.value)"
+                                        class="save-edit-btn">Save</button>
+                                    <button @click="cancelEditing" class="cancel-edit-btn">Cancel</button>
                                 </div>
                             </li>
                         </ul>
