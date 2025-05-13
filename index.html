@@ -27,13 +27,34 @@
         </button>
 
         <template v-else>
-            <div class="header-controls">
+            <!-- <div class="header-controls">
                 <button @click="$graffiti.logout($graffitiSession.value)">
                     Log Out
                 </button>
                 <button @click="showProfileModal = true; loadProfile($graffitiSession.value.actor)">
                     Edit Profile
                 </button>
+
+                <button v-if="currentView === 'group'" @click="returnHome()" class="back-button">
+                    ← Back to All Groups
+                </button>
+            </div> -->
+            <div class="header-controls">
+                <button @click="$graffiti.logout($graffitiSession.value)">
+                    Log Out
+                </button>
+
+                <div class="profile-controls">
+                    <div class="profile-avatar"
+                        @click="showProfileModal = true; loadProfile($graffitiSession.value.actor)">
+                        <img v-if="profileImage" :src="profileImage" alt="Profile">
+                        <span v-else>{{ getUserInitials($graffitiSession.value.actor) }}</span>
+                    </div>
+                    <button class="profile-edit-btn"
+                        @click="showProfileModal = true; loadProfile($graffitiSession.value.actor)">
+                        Edit Profile
+                    </button>
+                </div>
 
                 <button v-if="currentView === 'group'" @click="returnHome()" class="back-button">
                     ← Back to All Groups
@@ -125,9 +146,13 @@
                                     No groups yet. Join or create one!
                                 </div>
                                 <div class="groups-grid">
+                                    <!-- <group-card v-for="obj in filteredMyGroups(objects)" :key="obj.url" :group="obj"
+                                        :is-member="true" :is-creator="obj.actor === $graffitiSession.value.actor"
+                                        :on-open="enterGroup" :on-leave="leaveGroup" /> -->
                                     <group-card v-for="obj in filteredMyGroups(objects)" :key="obj.url" :group="obj"
                                         :is-member="true" :is-creator="obj.actor === $graffitiSession.value.actor"
-                                        :on-open="enterGroup" :on-leave="leaveGroup" />
+                                        :on-open="enterGroup" :on-leave="leaveGroup"
+                                        :unread-count="unreadCounts[obj.value.object.channel] || 0" />
                                 </div>
                             </graffiti-discover>
                         </div>
@@ -144,15 +169,17 @@
                                     No groups found. Create one to get started!
                                 </div>
                                 <div class="groups-grid">
-                                    <!-- <group-card
-                                    v-for="obj in groupObjects.filter(g => !myGroups.includes(g.value.object.channel))"
-                                    :key="obj.url" :group="obj" :is-member="false"
-                                    :is-creator="obj.actor === $graffitiSession.value.actor" :on-open="enterGroup"
-                                    :on-join="enterGroup" /> -->
+
+                                    <!-- <group-card v-for="obj in uniqueAvailableGroups(groupObjects)"
+                                        :key="obj.value.object.channel" :group="obj" :is-member="false"
+                                        :is-creator="obj.actor === $graffitiSession.value.actor" :on-open="enterGroup"
+                                        :on-join="enterGroup" /> -->
+
                                     <group-card v-for="obj in uniqueAvailableGroups(groupObjects)"
                                         :key="obj.value.object.channel" :group="obj" :is-member="false"
                                         :is-creator="obj.actor === $graffitiSession.value.actor" :on-open="enterGroup"
-                                        :on-join="enterGroup" />
+                                        :on-join="enterGroup"
+                                        :unread-count="unreadCounts[obj.value.object.channel] || 0" />
 
 
 
@@ -257,12 +284,16 @@
                     </div>
                 </div>
 
-                <form @submit.prevent="sendMessage($graffitiSession.value)">
+                <!-- <form @submit.prevent="sendMessage($graffitiSession.value)">
                     <fieldset :disabled="sending">
                         <input type="text" v-model="myMessage" placeholder="Type your message here..."
                             ref="messageInput" v-focus />
                         <input type="submit" :value="sending ? 'Sending...' : 'Send'" class="send-button" />
                     </fieldset>
+                </form> -->
+                <form class="message-input-form" @submit.prevent="sendMessage($graffitiSession.value)">
+                    <input type="text" v-model="myMessage" placeholder="Type your message here..." ref="messageInput">
+                    <input type="submit" :value="sending ? 'Sending...' : 'Send'">
                 </form>
 
                 <!-- <div class="messages-container">

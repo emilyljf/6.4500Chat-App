@@ -9,8 +9,28 @@ const focusDirective = {
     }
 };
 
+// const GroupCard = {
+//     props: ['group', 'isMember', 'onOpen', 'onJoin', 'onLeave', 'isCreator'],
+//     template: `
+//         <div class="group-card">
+//             <div class="group-image" @click="onOpen(group.value.object)">
+//                 <img v-if="group.value.object.image" :src="group.value.object.image" alt="Group image" />
+//                 <div v-else class="default-group-image">
+//                     {{ (group.value.object.name || 'G').charAt(0).toUpperCase() }}
+//                 </div>
+//             </div>
+//             <div class="group-info">
+//                 <h4>{{ group.value.object.name || 'Unnamed Group' }}</h4>
+//                 <button v-if="isMember" @click="onOpen(group.value.object)" class="open-btn">Open</button>
+//                 <button v-if="isMember" @click="onLeave(group)" class="leave-btn">Leave</button>
+//                 <button v-if="!isMember" @click="onJoin(group.value.object)" class="join-btn">Join</button>
+//             </div>
+//         </div>
+//     `
+// };
+
 const GroupCard = {
-    props: ['group', 'isMember', 'onOpen', 'onJoin', 'onLeave', 'isCreator'],
+    props: ['group', 'isMember', 'isCreator', 'onOpen', 'onJoin', 'onLeave', 'unreadCount'],
     template: `
         <div class="group-card">
             <div class="group-image" @click="onOpen(group.value.object)">
@@ -21,6 +41,9 @@ const GroupCard = {
             </div>
             <div class="group-info">
                 <h4>{{ group.value.object.name || 'Unnamed Group' }}</h4>
+                <div v-if="unreadCount > 0" class="unread-badge">
+                    {{ unreadCount }}
+                </div>
                 <button v-if="isMember" @click="onOpen(group.value.object)" class="open-btn">Open</button>
                 <button v-if="isMember" @click="onLeave(group)" class="leave-btn">Leave</button>
                 <button v-if="!isMember" @click="onJoin(group.value.object)" class="join-btn">Join</button>
@@ -29,10 +52,10 @@ const GroupCard = {
     `
 };
 
-
 createApp({
     data() {
         return {
+            profileImage: null,
             myMessage: "",
             sending: false,
             creatingGroup: false,
@@ -146,6 +169,8 @@ createApp({
             messageCache: new Map(),
             myPinnedMessageUrls: new Set(),
             localPinnedState: new Map(),
+            lastViewedTimes: {},
+            unreadCounts: {},
         };
     },
 
@@ -156,6 +181,56 @@ createApp({
     },
 
     methods: {
+        updateLastViewedTime(channel) {
+            this.lastViewedTimes[channel] = Date.now();
+            this.unreadCounts[channel] = 0;
+            this.forceRefresh++;
+        },
+        getUserInitials(actorUri) {
+            try {
+                const name = this.getUserName(actorUri);
+                if (!name) return 'ME';
+
+                const parts = name.split(' ');
+
+                const initials = parts
+                    .filter(part => part.length > 0)
+                    .slice(0, 2)
+                    .map(part => part.charAt(0).toUpperCase());
+
+                return initials.join('') || 'ME';
+            } catch (e) {
+                console.error("Error generating initials:", e);
+                return 'ME';
+            }
+        },
+
+
+        calculateUnreadCounts(objects) {
+            if (!this.$graffitiSession.value) return;
+
+            const counts = {};
+
+            // Initialize counts for all known groups
+            Object.keys(this.lastViewedTimes).forEach(channel => {
+                counts[channel] = 0;
+            });
+
+            // Count unread messages
+            objects.forEach(obj => {
+                if (obj.value?.published && obj.value?.content) {
+                    const channel = obj.channels?.[0];
+                    if (channel && channel in this.lastViewedTimes) {
+                        if (obj.value.published > this.lastViewedTimes[channel]) {
+                            counts[channel] = (counts[channel] || 0) + 1;
+                        }
+                    }
+                }
+            });
+
+            this.unreadCounts = counts;
+        },
+
         scrollToBottom() {
             const container = this.$refs.messages;
             if (container) {
@@ -401,17 +476,17 @@ createApp({
         // },
         // async createGroupChat(session) {
         //     if (!this.newGroupName) return;
-        
+
         //     this.creatingGroup = true;
-        
+
         //     try {
         //         const discovery = await this.$graffiti.discover({
         //             schema: this.groupDiscoverSchema,
         //             channels: ['designftw']
         //         });
-        
+
         //         const discoveredObjects = discovery.objects || [];
-        
+
         //         // De-duplicate by channel
         //         const uniqueGroupsByChannel = new Map();
         //         for (const obj of discoveredObjects) {
@@ -420,7 +495,7 @@ createApp({
         //                 uniqueGroupsByChannel.set(channel, obj);
         //             }
         //         }
-        
+
         //         // Check for duplicate name (case-insensitive)
         //         const lowerNewName = this.newGroupName.trim().toLowerCase();
         //         for (const obj of uniqueGroupsByChannel.values()) {
@@ -431,7 +506,7 @@ createApp({
         //                 return;
         //             }
         //         }
-        
+
         //         const newChannel = `group:${crypto.randomUUID()}`;
         //         const newGroup = {
         //             value: {
@@ -446,9 +521,9 @@ createApp({
         //             },
         //             channels: ["designftw"]
         //         };
-        
+
         //         await this.$graffiti.put(newGroup, session);
-        
+
         //         // Log Join activity
         //         await this.$graffiti.put({
         //             value: {
@@ -462,14 +537,14 @@ createApp({
         //             },
         //             channels: ['designftw']
         //         }, session);
-        
+
         //         this.myGroups.push(newChannel);
         //         this.newGroupName = "";
         //         this.newGroupImage = "";
         //         this.newGroupDescription = "";
         //         this.showCreateGroupModal = false;
         //         this.forceRefresh++;
-        
+
         //     } catch (error) {
         //         console.error("Failed to create group:", error);
         //         alert("Failed to create group. Please try again.");
@@ -479,17 +554,17 @@ createApp({
         // },        
         async createGroupChat(session) {
             if (!this.newGroupName) return;
-        
+
             this.creatingGroup = true;
-        
+
             try {
                 const discovery = await this.$graffiti.discover({
                     schema: this.groupDiscoverSchema,
                     channels: ['designftw']
                 });
-        
+
                 const discoveredObjects = discovery.objects || [];
-        
+
                 console.log("Discovered group objects:");
                 discoveredObjects.forEach(obj => {
                     const activity = obj.value?.activity;
@@ -497,14 +572,14 @@ createApp({
                     const channel = obj.value?.object?.channel;
                     console.log(`Activity: ${activity}, Name: ${name}, Channel: ${channel}, URL: ${obj.url}`);
                 });
-        
+
                 // Track latest 'Create' per channel (deduplicated by channel using highest URL)
                 const latestCreates = new Map();
-        
+
                 for (const obj of discoveredObjects) {
                     const activity = obj.value?.activity;
                     const channel = obj.value?.object?.channel;
-        
+
                     if (activity === 'Create' && channel) {
                         const existing = latestCreates.get(channel);
                         if (!existing || obj.url > existing.url) {
@@ -512,9 +587,9 @@ createApp({
                         }
                     }
                 }
-        
+
                 const lowerNewName = this.newGroupName.trim().toLowerCase();
-        
+
                 for (const obj of latestCreates.values()) {
                     const existingName = obj.value?.object?.name?.trim().toLowerCase();
                     console.log("Checking against group name:", existingName);
@@ -524,7 +599,7 @@ createApp({
                         return;
                     }
                 }
-        
+
                 const newChannel = `group:${crypto.randomUUID()}`;
                 const newGroup = {
                     value: {
@@ -539,9 +614,9 @@ createApp({
                     },
                     channels: ['designftw']
                 };
-        
+
                 await this.$graffiti.put(newGroup, session);
-        
+
                 await this.$graffiti.put({
                     value: {
                         activity: 'Join',
@@ -554,21 +629,21 @@ createApp({
                     },
                     channels: ['designftw']
                 }, session);
-        
+
                 this.myGroups.push(newChannel);
                 this.newGroupName = "";
                 this.newGroupImage = "";
                 this.newGroupDescription = "";
                 this.showCreateGroupModal = false;
                 this.forceRefresh++;
-        
+
             } catch (error) {
                 console.error("Failed to create group:", error);
                 alert("Failed to create group. Please try again.");
             } finally {
                 this.creatingGroup = false;
             }
-        },        
+        },
 
         // async enterGroup(group) {
         //     this.currentGroup = {
@@ -611,6 +686,7 @@ createApp({
         // },
 
         async enterGroup(group) {
+            this.updateLastViewedTime(group.channel);
             this.currentGroup = {
                 name: group.name || 'Unnamed Group',
                 channel: group.channel,
@@ -1018,30 +1094,30 @@ createApp({
 
         uniqueAvailableGroups(objects) {
             if (!this.$graffitiSession.value || !objects) return [];
-        
+
             const myActor = this.$graffitiSession.value.actor;
             const channelStates = new Map();
-        
+
             // Track membership state based on actor's activity
             objects
                 .filter(obj => obj.actor === myActor)
                 .forEach(obj => {
                     const channel = obj.value.object.channel;
                     const activity = obj.value.activity;
-        
+
                     if (activity === 'Create' || activity === 'Join') {
                         channelStates.set(channel, true);
                     } else if (activity === 'Leave') {
                         channelStates.set(channel, false);
                     }
                 });
-        
+
             const myJoinedChannels = new Set(
                 Array.from(channelStates.entries())
                     .filter(([_, joined]) => joined)
                     .map(([channel]) => channel)
             );
-        
+
             // Now filter out any group already joined
             const uniqueMap = new Map();
             for (const obj of objects) {
@@ -1050,9 +1126,9 @@ createApp({
                     uniqueMap.set(channel, obj);
                 }
             }
-        
+
             return Array.from(uniqueMap.values());
-        },        
+        },
 
         async leaveGroup(groupObj) {
             if (!confirm(`Are you sure you want to leave "${groupObj.value.object.name}"?`)) return;
@@ -1187,6 +1263,7 @@ createApp({
         //     this.$nextTick(this.scrollToBottom);
         //   },
         messageObjects(newVal, oldVal) {
+            this.calculateUnreadCounts(newVal);
             if (!oldVal || newVal.length > oldVal.length) {
                 this.$nextTick(this.scrollToBottom);
             }
@@ -1299,6 +1376,10 @@ createApp({
             },
             { immediate: true }
         );
+        this.myGroups.forEach(channel => {
+            this.lastViewedTimes[channel] = Date.now();
+            this.unreadCounts[channel] = 0;
+        });
     }
 
 })
